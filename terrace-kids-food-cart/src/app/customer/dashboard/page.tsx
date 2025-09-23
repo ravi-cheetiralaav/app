@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
   Box,
@@ -12,6 +12,7 @@ import {
   Chip,
   Avatar,
   Stack,
+  Button,
 } from '@mui/material';
 import {
   RestaurantMenu,
@@ -42,22 +43,6 @@ const dashboardItems = [
     emoji: '🛒',
     href: '/customer/orders',
     color: '#4ECDC4',
-  },
-  {
-    title: 'Order History',
-    description: 'See all your past orders and favorites',
-    icon: <History fontSize="large" />,
-    emoji: '📋',
-    href: '/customer/history',
-    color: '#45B7D1',
-  },
-  {
-    title: 'My Profile',
-    description: 'Update your information and preferences',
-    icon: <AccountCircle fontSize="large" />,
-    emoji: '👤',
-    href: '/customer/profile',
-    color: '#FFA726',
   },
 ];
 
@@ -94,6 +79,12 @@ export default function CustomerDashboard() {
           {/* Welcome Header */}
           <motion.div variants={staggerItem}>
             <Box textAlign="center" mb={6}>
+              <Box position="absolute" top={16} left={16}>
+                <Button variant="outlined" size="small" onClick={() => router.back()}>Back</Button>
+              </Box>
+              <Box position="absolute" top={16} right={16}>
+                <Button variant="text" size="small" onClick={() => signOut({ callbackUrl: '/login' })}>Logout</Button>
+              </Box>
               <Avatar
                 sx={{
                   width: 80,

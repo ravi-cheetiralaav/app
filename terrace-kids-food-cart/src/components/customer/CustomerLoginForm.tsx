@@ -84,7 +84,7 @@ const CustomerLoginForm: React.FC<CustomerLoginFormProps> = ({ onSuccess }) => {
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
               error={!!error && !userId}
-              helperText={!userId && error ? error : 'Format: FirstName_StreetCode_HouseNumber'}
+              helperText={!userId && error ? error : ''}
               margin="normal"
               InputProps={{
                 startAdornment: (

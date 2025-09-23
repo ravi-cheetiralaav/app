@@ -67,6 +67,17 @@ class DataAccessLayer {
     });
   }
 
+  async updateEvent(event_id: string, updates: Partial<Event>): Promise<{ changes: number; success: boolean }> {
+    const updateData: any = {
+      ...updates,
+      updated_at: new Date().toISOString()
+    };
+    if (typeof updates.is_active === 'boolean') {
+      updateData.is_active = updates.is_active ? 1 : 0;
+    }
+    return this.db.updateOne('events', { event_id }, updateData);
+  }
+
   // Menu item operations
   async getMenuItems(event_id?: string): Promise<MenuItem[]> {
     const conditions = event_id ? { event_id, is_active: 1 } : { is_active: 1 };
@@ -75,6 +86,7 @@ class DataAccessLayer {
     // Parse JSON strings back to arrays for TypeScript compatibility
     return items.map((item: any) => ({
       ...item,
+      qty_per_unit: item.qty_per_unit,
       ingredients: typeof item.ingredients === 'string' ? JSON.parse(item.ingredients) : item.ingredients,
       health_benefits: typeof item.health_benefits === 'string' ? JSON.parse(item.health_benefits) : item.health_benefits,
       is_active: Boolean(item.is_active)
@@ -87,6 +99,7 @@ class DataAccessLayer {
     
     return {
       ...item,
+      qty_per_unit: item.qty_per_unit,
       ingredients: typeof item.ingredients === 'string' ? JSON.parse(item.ingredients) : item.ingredients,
       health_benefits: typeof item.health_benefits === 'string' ? JSON.parse(item.health_benefits) : item.health_benefits,
       is_active: Boolean(item.is_active)
@@ -97,6 +110,7 @@ class DataAccessLayer {
     const now = new Date().toISOString();
     return this.db.insertOne('menu_items', {
       ...itemData,
+      qty_per_unit: itemData.qty_per_unit,
       ingredients: JSON.stringify(itemData.ingredients),
       health_benefits: JSON.stringify(itemData.health_benefits),
       is_active: itemData.is_active ? 1 : 0,
@@ -117,6 +131,12 @@ class DataAccessLayer {
     }
     if (updates.health_benefits) {
       updateData.health_benefits = JSON.stringify(updates.health_benefits);
+    }
+    if (typeof updates.qty_per_unit === 'string') {
+      updateData.qty_per_unit = updates.qty_per_unit;
+    }
+    if (typeof updates.calories !== 'undefined') {
+      updateData.calories = updates.calories;
     }
     if (typeof updates.is_active === 'boolean') {
       updateData.is_active = updates.is_active ? 1 : 0;
@@ -139,6 +159,73 @@ class DataAccessLayer {
 
   async getOrderById(order_id: string): Promise<Order | null> {
     return this.db.findOne<Order>('orders', { order_id });
+  }
+
+  async getOrderWithItems(order_id: string): Promise<Order | null> {
+    const query = `
+      SELECT 
+        o.*,
+        oi.id as item_id,
+        oi.menu_item_id,
+        oi.quantity,
+        oi.unit_price,
+        oi.subtotal,
+        mi.name as item_name,
+        mi.description as item_description,
+        mi.category as item_category,
+        mi.quantity_available as item_quantity_available
+      FROM orders o
+      LEFT JOIN order_items oi ON o.order_id = oi.order_id
+      LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
+      WHERE o.order_id = ?
+      ORDER BY oi.id
+    `;
+
+    const results = await this.db.executeQuery<any>(query, [order_id]);
+    if (!results || results.length === 0) {
+      // If no rows, check if order exists without items
+      const ord = await this.getOrderById(order_id);
+      if (!ord) return null;
+      ord.items = [];
+      return ord;
+    }
+
+    const order: any = {
+      id: results[0].id,
+      order_id: results[0].order_id,
+      user_id: results[0].user_id,
+      event_id: results[0].event_id,
+      status: results[0].status,
+      total_amount: results[0].total_amount,
+      qr_code: results[0].qr_code,
+      pickup_time: results[0].pickup_time,
+      notes: results[0].notes,
+      created_at: results[0].created_at,
+      updated_at: results[0].updated_at,
+      items: []
+    };
+
+    results.forEach(row => {
+      if (row.item_id) {
+        order.items.push({
+          id: row.item_id,
+          order_id: row.order_id,
+          menu_item_id: row.menu_item_id,
+          quantity: row.quantity,
+          unit_price: row.unit_price,
+          subtotal: row.subtotal,
+          menu_item: {
+            id: row.menu_item_id,
+            name: row.item_name,
+            description: row.item_description,
+            category: row.item_category,
+            quantity_available: row.item_quantity_available || 0
+          }
+        });
+      }
+    });
+
+    return order as Order;
   }
 
   async getOrdersWithItems(user_id?: string, event_id?: string): Promise<Order[]> {
@@ -254,6 +341,66 @@ class DataAccessLayer {
     return this.db.deleteOne('order_items', { order_id });
   }
 
+  /**
+   * Update order items for an existing order.
+   * This will run inside a transaction: validate stock, update order_items, adjust menu stock, and update order total.
+   * items: [{ menu_item_id, quantity }]
+   */
+  async updateOrderItems(order_id: string, items: Array<{ menu_item_id: number; quantity: number }>): Promise<Order | null> {
+    // Use explicit transaction via executeTransaction
+    return this.executeTransaction<Order | null>(async () => {
+      const existing = await this.getOrderWithItems(order_id) as any;
+      if (!existing) throw new Error('Order not found');
+
+      if (existing.status && !['pending', 'scheduled', 'draft'].includes(existing.status)) {
+        throw new Error('Order cannot be edited in its current state');
+      }
+
+      // Build lines and validate stock
+      let total = 0;
+      const lines: any[] = [];
+      for (const it of items) {
+        const menu = await this.getMenuItemById(it.menu_item_id as any);
+        if (!menu) throw new Error(`Menu item not found: ${it.menu_item_id}`);
+        if ((menu.quantity_available || 0) < it.quantity) throw new Error(`Not enough stock for ${menu.name}`);
+        const unit = Number(menu.price) || 0;
+        const subtotal = unit * Number(it.quantity);
+        total += subtotal;
+        lines.push({ menu, quantity: Number(it.quantity), unit, subtotal });
+      }
+
+      // Restore stock from previous items (increment back) before applying new items
+      if (existing.items && Array.isArray(existing.items)) {
+        for (const prev of existing.items) {
+          try {
+            const prevMenu = await this.getMenuItemById(prev.menu_item_id);
+            if (prevMenu) {
+              const restored = (prevMenu.quantity_available || 0) + Number(prev.quantity || 0);
+              await this.updateMenuItemStock(prev.menu_item_id, restored);
+            }
+          } catch (e) {
+            // continue
+          }
+        }
+      }
+
+      // Clear existing items
+      await this.clearOrderItems(order_id);
+
+      // Add new items and decrement stock
+      for (const ln of lines) {
+        await this.addOrderItem({ order_id, menu_item_id: ln.menu.id, quantity: ln.quantity, unit_price: ln.unit, subtotal: ln.subtotal });
+        const newQty = Math.max(0, (ln.menu.quantity_available || 0) - ln.quantity);
+        await this.updateMenuItemStock(ln.menu.id, newQty);
+      }
+
+      // Update order total
+      await this.updateOrder(order_id, { total_amount: total });
+
+      return this.getOrderWithItems(order_id);
+    });
+  }
+
   // Feedback operations
   async getFeedback(event_id?: string): Promise<Feedback[]> {
     const conditions = event_id ? { event_id } : {};
@@ -283,7 +430,16 @@ class DataAccessLayer {
 
   // Transaction wrapper for complex operations
   async executeTransaction<T>(fn: () => Promise<T> | T): Promise<T> {
-    return this.db.transaction(() => fn());
+    // Use explicit BEGIN/COMMIT/ROLLBACK so callers can use async operations inside the transaction
+    await this.db.executeNonQuery('BEGIN');
+    try {
+      const result = await fn();
+      await this.db.executeNonQuery('COMMIT');
+      return result as T;
+    } catch (err) {
+      await this.db.executeNonQuery('ROLLBACK');
+      throw err;
+    }
   }
 }
 

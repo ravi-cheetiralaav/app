@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Comic_Neue } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
+import Header from '@/components/ui/Header';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -34,6 +35,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} ${comicNeue.variable} antialiased`}>
         <Providers>
+          <Header />
           {children}
           {/* Footer inserted site-wide */}
           <footer style={{

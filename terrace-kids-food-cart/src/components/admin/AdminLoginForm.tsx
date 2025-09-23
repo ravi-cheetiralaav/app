@@ -173,9 +173,6 @@ const AdminLoginForm: React.FC<AdminLoginFormProps> = ({ onSuccess }) => {
             <Typography variant="body2" color="text.secondary">
               🔒 Admin access only
             </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Default: admin123 (change after first login)
-            </Typography>
           </Box>
         </motion.div>
       </motion.div>

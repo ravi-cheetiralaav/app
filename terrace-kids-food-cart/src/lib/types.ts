@@ -36,6 +36,7 @@ export interface MenuItem {
   price: number;
   category: 'food' | 'beverage' | 'dessert' | 'snack';
   image_url?: string;
+  qty_per_unit?: string; // e.g. "200g", "1 piece"
   ingredients: string[]; // Will be stored as JSON string in SQLite
   calories?: number;
   health_benefits: string[]; // Will be stored as JSON string in SQLite
@@ -120,6 +121,7 @@ export interface CreateMenuItemForm {
   price: number;
   category: MenuItem['category'];
   image_url?: string;
+  qty_per_unit?: string;
   ingredients: string[];
   calories?: number;
   health_benefits: string[];

@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS menu_items (
     price DECIMAL(10,2) NOT NULL,
     category TEXT NOT NULL DEFAULT 'food', -- food, beverage, dessert, snack
     image_url TEXT,
+    qty_per_unit TEXT,
     ingredients TEXT, -- JSON string for flexibility
     calories INTEGER,
     health_benefits TEXT, -- JSON string for flexibility

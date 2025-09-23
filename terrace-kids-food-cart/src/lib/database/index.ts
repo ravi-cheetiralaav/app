@@ -36,6 +36,21 @@ class DatabaseManager {
         this.db.exec(statement);
       });
 
+      // Run lightweight migrations for added columns so existing DBs are compatible
+      try {
+        const cols = this.db.prepare("PRAGMA table_info('menu_items')").all() as Array<{ name: string }>;
+        const colNames = cols.map(c => c.name);
+        if (!colNames.includes('qty_per_unit')) {
+          this.db.exec("ALTER TABLE menu_items ADD COLUMN qty_per_unit TEXT;");
+        }
+        if (!colNames.includes('calories')) {
+          this.db.exec("ALTER TABLE menu_items ADD COLUMN calories INTEGER;");
+        }
+      } catch (merr) {
+        // Non-fatal - log and continue
+        console.warn('Migration check for menu_items columns failed:', merr);
+      }
+
       console.log('Database initialized successfully');
       this.seedInitialData();
     } catch (error) {
@@ -204,9 +219,18 @@ class DatabaseManager {
     }
   }
 
-  // Transaction support
-  public transaction<T>(fn: (db: Database.Database) => T): T {
-    return this.db.transaction(fn)();
+  // Transaction support (supports async functions)
+  public async transaction<T>(fn: () => Promise<T> | T): Promise<T> {
+    // Use explicit BEGIN/COMMIT/ROLLBACK so callers can perform async work inside the transaction
+    try {
+      await this.executeNonQuery('BEGIN');
+      const result = await Promise.resolve(fn());
+      await this.executeNonQuery('COMMIT');
+      return result as T;
+    } catch (err) {
+      try { await this.executeNonQuery('ROLLBACK'); } catch (e) { /* ignore */ }
+      throw err;
+    }
   }
 
   public close(): void {
