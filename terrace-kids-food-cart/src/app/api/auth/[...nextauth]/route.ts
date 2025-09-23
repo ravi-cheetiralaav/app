@@ -55,8 +55,13 @@ export const authOptions: NextAuthOptions = {
 
         try {
           // Find admin user by user_id (username)
-          const user = await dal.getUserByCredentials(credentials.username, true);
-          
+          let user = await dal.getUserByCredentials(credentials.username, true);
+
+          // Developer convenience: allow logging in with username 'admin' to map to the seeded Admin_SYS_001
+          if (!user && credentials.username.toLowerCase() === 'admin') {
+            user = await dal.getUserByCredentials('Admin_SYS_001', true);
+          }
+
           if (user && user.is_admin && user.is_active) {
             // For now, we'll use a simple password check
             // In production, this should be properly hashed

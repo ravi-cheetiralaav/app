@@ -116,7 +116,7 @@ const CustomerLoginForm: React.FC<CustomerLoginFormProps> = ({ onSuccess }) => {
               variant="contained"
               fullWidth
               size="large"
-              emoji="🚀"
+              emoji="🔑"
               loading={loading}
               disabled={!userId.trim()}
             >
