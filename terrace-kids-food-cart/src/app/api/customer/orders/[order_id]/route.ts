@@ -23,6 +23,11 @@ export async function PATCH(req: Request, { params }: { params: { order_id: stri
       return new NextResponse('Order cannot be edited in its current state', { status: 400 });
     }
 
+    // Strict: disallow edits to already approved orders (view-only)
+    if ((existing.status as any) === 'approved') {
+      return new NextResponse('Approved orders are read-only', { status: 409 });
+    }
+
     // Delegate to DAL update (to be implemented)
     const updated = await data.updateOrderItems(order_id, body.items);
     return NextResponse.json({ success: true, data: updated });

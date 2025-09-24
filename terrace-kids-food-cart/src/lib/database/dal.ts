@@ -330,6 +330,66 @@ class DataAccessLayer {
     });
   }
 
+  /**
+   * Delete an order and its items inside a transaction. Returns { success: boolean }
+   */
+  async deleteOrder(order_id: string, deleted_by?: string, reason?: string): Promise<{ success: boolean }> {
+    // Implement soft-delete with audit log. We will mark orders as is_deleted = 1 and insert a row into order_deletions
+    // deleted_by and reason are optional but recommended; when provided, the audit row will be inserted inside the same transaction.
+    return this.executeTransaction(async () => {
+      // Ensure orders table has is_deleted, deleted_at, deleted_by columns (attempt lightweight migration)
+      try {
+        const cols = this.db.executeQuery(`PRAGMA table_info('orders')`) as any;
+        const colNames = (cols as any[]).map((c: any) => c.name);
+        if (!colNames.includes('is_deleted')) {
+          // Add column
+          // Using executeNonQuery to run ALTER; ignore failures on older DBs
+          await this.db.executeNonQuery("ALTER TABLE orders ADD COLUMN is_deleted INTEGER DEFAULT 0;");
+        }
+        if (!colNames.includes('deleted_at')) {
+          await this.db.executeNonQuery("ALTER TABLE orders ADD COLUMN deleted_at TEXT;");
+        }
+        if (!colNames.includes('deleted_by')) {
+          await this.db.executeNonQuery("ALTER TABLE orders ADD COLUMN deleted_by TEXT;");
+        }
+      } catch (e) {
+        // non-fatal
+      }
+
+      // Ensure audit table exists
+      try {
+        await this.db.executeNonQuery(`
+          CREATE TABLE IF NOT EXISTS order_deletions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id TEXT NOT NULL,
+            deleted_by TEXT,
+            reason TEXT,
+            deleted_at TEXT NOT NULL
+          );
+        `);
+      } catch (e) {
+        // non-fatal
+      }
+
+      const now = new Date().toISOString();
+
+      // Mark order as deleted
+      await this.db.updateOne('orders', { order_id }, { is_deleted: 1, deleted_at: now });
+
+      // Insert audit record when information is provided (do this inside the same transaction for atomicity)
+      try {
+        if (deleted_by || reason) {
+          await this.db.executeNonQuery(`INSERT INTO order_deletions (order_id, deleted_by, reason, deleted_at) VALUES (?, ?, ?, ?);`, [order_id, deleted_by || null, reason || null, now]);
+        }
+      } catch (e) {
+        // If audit insert fails, still throw to rollback the transaction — audits are considered important for deletions
+        throw new Error('Failed to insert audit record for order deletion: ' + String(e));
+      }
+
+      return { success: true };
+    });
+  }
+
   async addOrderItem(orderItem: Omit<OrderItem, 'id' | 'created_at'>): Promise<{ id: number; success: boolean }> {
     return this.db.insertOne('order_items', {
       ...orderItem,

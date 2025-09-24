@@ -165,7 +165,7 @@ export default function LandingPage() {
               sx={{ 
                 p: 6, 
                 textAlign: 'center',
-                background: 'linear-gradient(135deg, #FF6B6B, #FFA726)',
+                background: `linear-gradient(135deg, ${theme.palette.secondary.main}, ${theme.palette.secondary.light})`,
                 color: 'white'
               }}
             >

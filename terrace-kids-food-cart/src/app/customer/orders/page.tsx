@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, TextField } from '@mui/material';
+import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, TextField, Alert } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import PageWrapper from '@/components/ui/PageWrapper';
 import AnimatedCard from '@/components/ui/AnimatedCard';
@@ -67,7 +67,9 @@ export default function CustomerOrdersPage() {
                         } catch (e) {
                           console.error(e);
                         }
-                      }}>View / Edit</Button>
+                      }}>
+                        {o.status === 'approved' ? 'View' : 'View / Edit'}
+                      </Button>
                     </Box>
                   </Box>
 
@@ -101,9 +103,12 @@ export default function CustomerOrdersPage() {
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent dividers>
+          <DialogContent dividers>
           {selectedOrder ? (
             <Box>
+              {selectedOrder.status === 'approved' && (
+                <Alert severity="info" sx={{ mb: 2 }}>This order has been approved and is view-only.</Alert>
+              )}
               <Typography>Status: {selectedOrder.status}</Typography>
               <Box mt={2}>
                 {(editingItems || []).map((it: any, idx: number) => (
@@ -113,10 +118,20 @@ export default function CustomerOrdersPage() {
                       <Typography variant="caption" color="text.secondary">Available: {it.menu_item?.quantity_available ?? '-'}</Typography>
                     </Box>
                     <Box display="flex" alignItems="center">
-                      <TextField type="number" size="small" value={String(it.quantity)} inputProps={{ min: 0 }} onChange={(e) => {
-                        const v = Math.max(0, Number(e.target.value || 0));
-                        setEditingItems(prev => { const copy = [...prev]; copy[idx] = { ...copy[idx], quantity: v }; return copy; });
-                      }} sx={{ width: 100, mr: 2 }} />
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={String(it.quantity)}
+                        inputProps={{ min: 0 }}
+                        onChange={(e) => {
+                          // Prevent edits when order is approved
+                          if (selectedOrder && selectedOrder.status === 'approved') return;
+                          const v = Math.max(0, Number(e.target.value || 0));
+                          setEditingItems(prev => { const copy = [...prev]; copy[idx] = { ...copy[idx], quantity: v }; return copy; });
+                        }}
+                        sx={{ width: 100, mr: 2 }}
+                        disabled={!!selectedOrder && selectedOrder.status === 'approved'}
+                      />
                       <Typography>${(it.unit_price || 0) * (it.quantity || 0)}</Typography>
                     </Box>
                   </Box>
@@ -125,26 +140,29 @@ export default function CustomerOrdersPage() {
             </Box>
           ) : <Typography>Loading...</Typography>}
         </DialogContent>
-        <DialogActions>
+          <DialogActions>
           <Button onClick={() => setSelectedOrder(null)} disabled={saving}>Cancel</Button>
-          <Button variant="contained" onClick={async () => {
-            if (!selectedOrder) return;
-            setSaving(true);
-            try {
-              const payload = { user_id: selectedOrder.user_id, items: editingItems.map(it => ({ menu_item_id: it.menu_item_id, quantity: Number(it.quantity) })) };
-              const res = await fetch(`/api/customer/orders/${encodeURIComponent(selectedOrder.order_id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-              if (!res.ok) throw new Error('Failed to update order');
-              const updated = await res.json();
-              // Refresh list
-              const user_id = (session as any)?.user_id || (session as any)?.user?.email || '';
-              const r2 = await fetch(`/api/customer/orders?user_id=${encodeURIComponent(user_id)}`);
-              if (r2.ok) { const data = await r2.json(); setOrders(Array.isArray(data) ? data : []); }
-              setSelectedOrder(null);
-            } catch (e) {
-              console.error(e);
-              alert((e as any)?.message || 'Failed to update order');
-            } finally { setSaving(false); }
-          }} disabled={saving}>Save</Button>
+          {/* Hide Save when order is approved */}
+          {!(selectedOrder && selectedOrder.status === 'approved') && (
+            <Button variant="contained" onClick={async () => {
+              if (!selectedOrder) return;
+              setSaving(true);
+              try {
+                const payload = { user_id: selectedOrder.user_id, items: editingItems.map(it => ({ menu_item_id: it.menu_item_id, quantity: Number(it.quantity) })) };
+                const res = await fetch(`/api/customer/orders/${encodeURIComponent(selectedOrder.order_id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!res.ok) throw new Error('Failed to update order');
+                const updated = await res.json();
+                // Refresh list
+                const user_id = (session as any)?.user_id || (session as any)?.user?.email || '';
+                const r2 = await fetch(`/api/customer/orders?user_id=${encodeURIComponent(user_id)}`);
+                if (r2.ok) { const data = await r2.json(); setOrders(Array.isArray(data) ? data : []); }
+                setSelectedOrder(null);
+              } catch (e) {
+                console.error(e);
+                alert((e as any)?.message || 'Failed to update order');
+              } finally { setSaving(false); }
+            }} disabled={saving}>Save</Button>
+          )}
         </DialogActions>
       </Dialog>
     </PageWrapper>

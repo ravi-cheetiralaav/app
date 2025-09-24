@@ -15,6 +15,15 @@ import {
   IconButton,
   Stack,
   Divider,
+  CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Checkbox,
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import FloatingEmojis from '@/components/ui/FloatingEmojis';
@@ -24,6 +33,8 @@ import { useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Switch, FormControlLabel } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import AnimatedButton from '@/components/ui/AnimatedButton';
+import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
@@ -56,6 +67,15 @@ export default function AdminDashboard() {
   // store dates as ISO strings (YYYY-MM-DD) for server compatibility
   const [events, setEvents] = useState<any[]>([]);
   const [eventForm, setEventForm] = useState<any>({ event_id: '', name: '', event_date: '', cutoff_date: '', is_active: true });
+  const [orders, setOrders] = useState<any[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteResults, setDeleteResults] = useState<any[] | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [searchText, setSearchText] = useState<string>('');
 
   async function fetchEvents() {
     try {
@@ -86,6 +106,163 @@ export default function AdminDashboard() {
       router.refresh();
     } catch (err: any) {
       alert('Error saving event: ' + (err.message || err));
+    }
+  }
+
+  async function fetchOrders() {
+    setOrdersLoading(true);
+    try {
+      const res = await fetch('/api/admin/orders');
+      if (!res.ok) {
+        console.error('Failed to load orders', await res.text());
+        setOrders([]);
+        return;
+      }
+      const data = await res.json();
+      // API returns { results } sometimes; normalize if needed
+      const list = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : data.orders || []);
+      // apply client-side filters if provided
+      let filtered = list;
+      if (statusFilter) filtered = filtered.filter((o: any) => o.status === statusFilter);
+      if (searchText && searchText.trim()) {
+        const q = searchText.trim().toLowerCase();
+        filtered = filtered.filter((o: any) => (o.order_id || '').toLowerCase().includes(q) || (o.user_id || '').toLowerCase().includes(q));
+      }
+      setOrders(filtered);
+      setOrders(list);
+    } catch (err) {
+      console.error('Failed to fetch orders', err);
+      setOrders([]);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }
+
+  async function bulkAction(action: 'approve' | 'reject') {
+    if (selected.size === 0) return;
+    try {
+      const order_ids = Array.from(selected);
+      const res = await fetch('/api/admin/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_ids, action })
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || 'Action failed');
+      }
+      const data = await res.json();
+      // handle per-order results if needed
+      setSelected(new Set());
+      await fetchOrders();
+    } catch (err: any) {
+      alert('Bulk action failed: ' + (err?.message || String(err)));
+    }
+  }
+
+  async function singleAction(order_id: string, action: 'approve' | 'reject') {
+    try {
+      const res = await fetch('/api/admin/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id, action })
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || 'Action failed');
+      }
+      await fetchOrders();
+    } catch (err: any) {
+      alert('Action failed: ' + (err?.message || String(err)));
+    }
+  }
+
+  function downloadCSV(filename: string, rows: string[][]) {
+    const csv = rows.map(r => r.map(c => '"' + String(c ?? '').replace(/"/g, '""') + '"').join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function generateReport() {
+    if (!orders || orders.length === 0) {
+      alert('No orders to generate report');
+      return;
+    }
+    const rows: string[][] = [];
+    rows.push(['order_id', 'user_id', 'status', 'total_amount', 'pickup_time', 'created_at', 'items']);
+    for (const o of orders) {
+      rows.push([
+        o.order_id,
+        o.user_id,
+        o.status,
+        String(o.total_amount ?? ''),
+        o.pickup_time ?? '',
+        o.created_at ?? '',
+        JSON.stringify((o.items || []).map((it: any) => ({ menu_item_id: it.menu_item_id, quantity: it.quantity })))
+      ]);
+    }
+    const filename = `orders-report-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
+    downloadCSV(filename, rows);
+  }
+
+  // toggle selection of an order
+  function toggleSelect(orderId: string) {
+    setSelected(prev => {
+      const copy = new Set(prev);
+      if (copy.has(orderId)) copy.delete(orderId); else copy.add(orderId);
+      return copy;
+    });
+  }
+
+  function selectAllToggle() {
+    if (selected.size === orders.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(orders.map(o => o.order_id)));
+    }
+  }
+
+  // auto-load orders when admin dashboard mounts
+  useEffect(() => {
+    fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function confirmDeleteSelected() {
+    if (selected.size === 0) return;
+    if (!deleteReason || deleteReason.trim().length === 0) {
+      alert('Please provide a reason for deletion');
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      const order_ids = Array.from(selected);
+      const res = await fetch('/api/admin/orders', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_ids, confirm: true, reason: deleteReason })
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || 'Delete failed');
+      }
+      const data = await res.json();
+      setDeleteResults(data?.results || null);
+      setDeleteOpen(false);
+      setSelected(new Set());
+      await fetchOrders();
+    } catch (err: any) {
+      alert('Delete failed: ' + (err?.message || String(err)));
+    } finally {
+      setDeleteLoading(false);
+      setDeleteReason('');
     }
   }
 
@@ -142,32 +319,78 @@ export default function AdminDashboard() {
             </Box>
           </motion.div>
 
-          {/* Coming Soon Message */}
+          {/* Orders list (shown by default for admins) */}
           <motion.div variants={staggerItem}>
-            <Box 
-              textAlign="center" 
-              py={8}
-              sx={{
-                background: 'linear-gradient(135deg, #4ECDC420, #45B7D120)',
-                borderRadius: 4,
-                border: '2px dashed #4ECDC4',
-              }}
-            >
-              <Typography variant="h4" gutterBottom>
-                🚧 Coming Soon! 🚧
-              </Typography>
-              <Typography variant="h6" color="text.secondary" paragraph>
-                Admin features are being built with love by our development team.
-              </Typography>
-              <Typography variant="body1" color="text.secondary">
-                Soon you&apos;ll be able to:
-              </Typography>
-              <Box mt={2}>
-                <Typography variant="body2" paragraph>
-                  👥 Manage Users • 🍕 Update Menu • 📊 View Orders • 📈 Generate Reports
-                </Typography>
+            <Box mt={2} mb={2} display="flex" justifyContent="space-between" alignItems="center">
+              <Box>
+                <Typography variant="h5">Recent Orders</Typography>
+                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                  <TextField size="small" placeholder="Search order id or user" value={searchText} onChange={e => setSearchText(e.target.value)} />
+                  <TextField select size="small" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} SelectProps={{ native: true }}>
+                    <option value="">All statuses</option>
+                    <option value="pending">pending</option>
+                    <option value="approved">approved</option>
+                    <option value="rejected">rejected</option>
+                    <option value="scheduled">scheduled</option>
+                    <option value="draft">draft</option>
+                  </TextField>
+                  <AnimatedButton variant="text" onClick={() => fetchOrders()}>Apply</AnimatedButton>
+                </Stack>
               </Box>
+              <Stack direction="row" spacing={1}>
+                <AnimatedButton variant="outlined" color="primary" onClick={() => fetchOrders()}>Refresh</AnimatedButton>
+                <AnimatedButton variant="contained" color="primary" onClick={generateReport}>Generate Reports</AnimatedButton>
+                <AnimatedButton variant="outlined" color="error" onClick={() => setDeleteOpen(true)} disabled={selected.size === 0}>Delete Selected</AnimatedButton>
+                <AnimatedButton variant="contained" color="success" onClick={async () => await bulkAction('approve')} disabled={selected.size===0}>Approve Selected</AnimatedButton>
+                <AnimatedButton variant="contained" color="inherit" onClick={async () => await bulkAction('reject')} disabled={selected.size===0}>Reject Selected</AnimatedButton>
+              </Stack>
             </Box>
+
+            {ordersLoading ? (
+              <Box display="flex" justifyContent="center" py={6}><CircularProgress /></Box>
+            ) : (
+              <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell padding="checkbox"><Checkbox indeterminate={selected.size>0 && selected.size<orders.length} checked={orders.length>0 && selected.size===orders.length} onChange={selectAllToggle} /></TableCell>
+                      <TableCell>Order ID</TableCell>
+                      <TableCell>User</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell align="right">Total</TableCell>
+                      <TableCell>Items</TableCell>
+                      <TableCell>Created</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {orders.map((o: any) => (
+                      <TableRow key={o.order_id} hover>
+                        <TableCell padding="checkbox">
+                          <Checkbox checked={selected.has(o.order_id)} onChange={() => toggleSelect(o.order_id)} />
+                        </TableCell>
+                        <TableCell>{o.order_id}</TableCell>
+                        <TableCell>{o.user_id}</TableCell>
+                        <TableCell>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography variant="body2">{o.status}</Typography>
+                            <IconButton size="small" onClick={async () => await singleAction(o.order_id, 'approve')} title="Approve"><CheckIcon fontSize="small" /></IconButton>
+                            <IconButton size="small" onClick={async () => await singleAction(o.order_id, 'reject')} title="Reject"><CloseIcon fontSize="small" /></IconButton>
+                          </Stack>
+                        </TableCell>
+                        <TableCell align="right">{o.total_amount}</TableCell>
+                        <TableCell>{(o.items || []).length}</TableCell>
+                        <TableCell>{o.created_at ? new Date(o.created_at).toLocaleString() : ''}</TableCell>
+                      </TableRow>
+                    ))}
+                    {orders.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} align="center">No orders found</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </motion.div>
           
           {/* Admin Links */}
@@ -226,6 +449,29 @@ export default function AdminDashboard() {
             <DialogActions>
               <AnimatedButton onClick={() => setEventsOpen(false)}>Cancel</AnimatedButton>
               <AnimatedButton onClick={saveEvent} variant="contained">Save</AnimatedButton>
+            </DialogActions>
+          </Dialog>
+          <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} fullWidth maxWidth="sm">
+            <DialogTitle>Confirm Delete Selected Orders</DialogTitle>
+            <DialogContent>
+              <Typography variant="body2" color="text.secondary" paragraph>You're about to delete {selected.size} order(s). This action will be recorded in the audit log.</Typography>
+              <TextField fullWidth label="Reason for deletion" value={deleteReason} onChange={e => setDeleteReason(e.target.value)} multiline rows={3} />
+              {deleteResults && (
+                <Box mt={2}>
+                  <Typography variant="subtitle2">Last delete results</Typography>
+                  <List dense>
+                    {deleteResults.map((r: any) => (
+                      <ListItem key={r.order_id}>
+                        <ListItemText primary={r.order_id} secondary={r.success ? 'Deleted' : `Failed: ${r.message}`} />
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <AnimatedButton onClick={() => setDeleteOpen(false)}>Cancel</AnimatedButton>
+              <AnimatedButton onClick={confirmDeleteSelected} variant="contained" color="error" disabled={deleteLoading}>{deleteLoading ? 'Deleting...' : 'Confirm Delete'}</AnimatedButton>
             </DialogActions>
           </Dialog>
         </motion.div>

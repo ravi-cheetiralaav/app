@@ -98,7 +98,7 @@ export default function CustomerDashboard() {
                 👋
               </Avatar>
               <Typography variant="h3" gutterBottom>
-                {extendedSession?.greeting_word || 'Hello'}, {session?.user?.name?.split(' ')[0]}!
+                {`Hello ${session?.user?.name?.split(' ')[0]} ${extendedSession?.greeting_word || ''}!`}
               </Typography>
               <Typography variant="h6" color="text.secondary" paragraph>
                 Welcome to your food cart dashboard! 🎉
