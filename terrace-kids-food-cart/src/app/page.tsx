@@ -148,7 +148,7 @@ export default function LandingPage() {
                   emoji="❤️"
                   sx={{ minWidth: 200 }}
                 >
-                  Treat yourself
+                  Treat your self
                 </AnimatedButton>
               </Stack>
             </motion.div>

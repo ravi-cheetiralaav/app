@@ -20,22 +20,34 @@ const MenuCategoryHeader: React.FC<MenuCategoryHeaderProps> = ({
   const categoryConfig: Record<string, { emoji: string; defaultImage: string; gradient: string }> = {
     'Food': { 
       emoji: '🍔', 
-      defaultImage: '/images/categories/food-category.jpg',
+      // use the provided healthy-food GIF
+      defaultImage: '/images/healthy-food.gif',
       gradient: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)'
     },
     'Meals': { 
       emoji: '🍔', 
-      defaultImage: '/images/categories/food-category.jpg',
+      defaultImage: '/images/healthy-food.gif',
       gradient: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)'
+    },
+    'Drink': { 
+      emoji: '🥤', 
+      defaultImage: '/images/beverage.gif',
+      gradient: 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)'
     },
     'Drinks': { 
       emoji: '🥤', 
-      defaultImage: '/images/categories/beverage-category.jpg',
+      // use the provided beverage GIF
+      defaultImage: '/images/beverage.gif',
+      gradient: 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)'
+    },
+    'Beverage': { 
+      emoji: '🥤', 
+      defaultImage: '/images/beverage.gif',
       gradient: 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)'
     },
     'Beverages': { 
       emoji: '🥤', 
-      defaultImage: '/images/categories/beverage-category.jpg',
+      defaultImage: '/images/beverage.gif',
       gradient: 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)'
     },
     'Snacks': { 
@@ -60,7 +72,22 @@ const MenuCategoryHeader: React.FC<MenuCategoryHeaderProps> = ({
     }
   };
 
-  const config = categoryConfig[category] || categoryConfig['Uncategorized'];
+  // Normalize category lookup (case-insensitive, trimmed) so variants map correctly
+  const key = (category || 'Uncategorized').toString().trim();
+  const normalized = key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
+  let config = categoryConfig[normalized] || categoryConfig['Uncategorized'];
+
+  // If exact match failed, try substring matching for common variants
+  if (!categoryConfig[normalized]) {
+    const lower = key.toLowerCase();
+    if (lower.includes('bever')) {
+      config = categoryConfig['Beverages'];
+    } else if (lower.includes('drink')) {
+      config = categoryConfig['Drinks'];
+    } else if (lower.includes('food') || lower.includes('meal')) {
+      config = categoryConfig['Food'];
+    }
+  }
   const categoryImage = image || config.defaultImage;
 
   return (
@@ -103,7 +130,6 @@ const MenuCategoryHeader: React.FC<MenuCategoryHeaderProps> = ({
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
           >
             <Avatar
-              src={categoryImage}
               sx={{
                 width: 100,
                 height: 100,
@@ -112,10 +138,22 @@ const MenuCategoryHeader: React.FC<MenuCategoryHeaderProps> = ({
                 boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
                 '&:hover': {
                   boxShadow: '0 12px 48px rgba(0,0,0,0.4)',
-                }
+                },
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
               alt={category}
-            />
+            >
+              {categoryImage ? (
+                <img
+                  src={categoryImage}
+                  alt={category}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+              ) : null}
+            </Avatar>
           </motion.div>
 
           {/* Category Info */}
