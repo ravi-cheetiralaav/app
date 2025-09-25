@@ -145,10 +145,10 @@ export default function LandingPage() {
                   href="/login"
                   variant="contained"
                   size="large"
-                  emoji="🍽️"
+                  emoji="❤️"
                   sx={{ minWidth: 200 }}
                 >
-                  Start Ordering
+                  Treat yourself
                 </AnimatedButton>
               </Stack>
             </motion.div>
