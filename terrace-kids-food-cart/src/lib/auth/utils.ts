@@ -1,5 +1,5 @@
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import authOptions from '@/lib/auth/nextauth';
 import { User } from '@/lib/types';
 
 export interface ExtendedSession {

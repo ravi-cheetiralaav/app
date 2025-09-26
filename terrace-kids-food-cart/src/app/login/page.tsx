@@ -1,7 +1,9 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import React, { useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Box, Typography, Paper } from '@mui/material';
 import { motion } from 'framer-motion';
 import CustomerLoginForm from '@/components/customer/CustomerLoginForm';
@@ -20,17 +22,21 @@ interface TabPanelProps {
 
 export default function LoginPage() {
   // If a user hits /login?tab=admin, redirect to the dedicated admin login page
-  const searchParams = useSearchParams();
   const router = useRouter();
 
   useEffect(() => {
-    const tab = searchParams?.get('tab');
-    if (tab === 'admin') {
-      // client-side redirect to avoid route/page conflict
-      router.replace('/admin');
+    try {
+      const search = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const tab = search ? search.get('tab') : null;
+      if (tab === 'admin') {
+        // client-side redirect to avoid route/page conflict
+        router.replace('/admin');
+      }
+    } catch (e) {
+      // ignore in non-browser environments
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, []);
 
   return (
     <>

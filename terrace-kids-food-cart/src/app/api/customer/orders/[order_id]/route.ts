@@ -3,9 +3,9 @@ import dal from '@/lib/database/dal';
 
 const data = new dal();
 
-export async function PATCH(req: Request, { params }: { params: { order_id: string } }) {
+export async function PATCH(req: Request, context: any) {
   try {
-    const order_id = params.order_id;
+    const order_id = context?.params?.order_id;
     const body = await req.json();
     // expected body: { user_id, items: [{ menu_item_id, quantity }] }
     if (!body || !Array.isArray(body.items)) return new NextResponse('Invalid payload', { status: 400 });
@@ -36,9 +36,9 @@ export async function PATCH(req: Request, { params }: { params: { order_id: stri
   }
 }
 
-export async function GET(req: Request, { params }: { params: { order_id: string } }) {
+export async function GET(req: Request, context: any) {
   try {
-    const order_id = params.order_id;
+    const order_id = context?.params?.order_id;
     const order = await data.getOrderWithItems(order_id);
     if (!order) return new NextResponse('Order not found', { status: 404 });
     return NextResponse.json(order);
