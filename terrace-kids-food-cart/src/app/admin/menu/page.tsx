@@ -32,6 +32,7 @@ import {
 import PageWrapper from '@/components/ui/PageWrapper';
 import AnimatedButton from '@/components/ui/AnimatedButton';
 import { Edit } from '@mui/icons-material';
+import { Delete } from '@mui/icons-material';
 
 type MenuItem = any;
 
@@ -78,7 +79,9 @@ export default function AdminMenuPage() {
       ...it,
       category: !it.category ? 'Food' : (String(it.category).toLowerCase().startsWith('bev') ? 'Beverage' : 'Food')
     }));
-    setItems(normalized);
+    // Ensure numeric fields exist
+    const withNums = normalized.map((it: any) => ({ ...it, quantity_available: Number(it.quantity_available || 0), quantity_sold: Number(it.quantity_sold || 0) }));
+    setItems(withNums);
   }
 
   function openCreate() { setEditing(null); setForm({ name: '', description: '', price: 0, quantity_available: 0, category: '', is_active: true, ingredients: '', health_benefits: '', qty_per_unit: '', calories: '', event_id: activeEvent?.event_id || '' }); setErrors({}); setOpen(true); }
@@ -104,6 +107,21 @@ export default function AdminMenuPage() {
     const method = editing ? 'PUT' : 'POST';
     const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (res.ok) { setOpen(false); fetchItems(); } else { const txt = await res.text(); alert('Error: ' + txt); }
+  }
+
+  async function deleteItem(item: MenuItem) {
+    if (!confirm(`Delete ${item.name}? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/admin/menu?id=${item.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const text = await res.text();
+        alert('Delete failed: ' + text);
+        return;
+      }
+      fetchItems();
+    } catch (e) {
+      alert('Delete failed: ' + String(e));
+    }
   }
 
   function ProfileHeader() {
@@ -153,10 +171,16 @@ export default function AdminMenuPage() {
                     <Box>
                       <Typography variant="h6">{it.name} <Typography component="span" color="text.secondary">${it.price}</Typography></Typography>
                       <Typography variant="body2">{it.description}</Typography>
+                        <Box mt={1} display="flex" gap={2}>
+                          <Typography variant="caption" color="text.secondary">Actual: {Number(it.quantity_available || 0) + Number(it.quantity_sold || 0)}</Typography>
+                          <Typography variant="caption" color="text.secondary">Sold: {it.quantity_sold ?? 0}</Typography>
+                          <Typography variant="caption" color="text.secondary">Available: {it.quantity_available ?? 0}</Typography>
+                        </Box>
                     </Box>
                     <Box>
                       <FormControlLabel control={<Switch checked={Boolean(it.is_active)} />} label={it.is_active ? 'Active' : 'Inactive'} />
                       <IconButton onClick={() => openEdit(it)} aria-label="edit"><Edit /></IconButton>
+                      <IconButton onClick={() => deleteItem(it)} aria-label="delete"><Delete /></IconButton>
                     </Box>
                   </Paper>
                 </motion.div>

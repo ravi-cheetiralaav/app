@@ -35,3 +35,15 @@ export async function PUT(req: Request) {
     return new NextResponse(err.message, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const event_id = url.searchParams.get('event_id');
+    if (!event_id) return new NextResponse('Missing event_id', { status: 400 });
+    const res = await data.deleteEvent ? await (data as any).deleteEvent(event_id) : { success: false };
+    return NextResponse.json(res);
+  } catch (err: any) {
+    return new NextResponse(err.message, { status: 500 });
+  }
+}

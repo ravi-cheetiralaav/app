@@ -5,7 +5,10 @@ const data = new dal();
 
 export async function GET(req: Request) {
   try {
-    const items = await data.getMenuItems();
+    // Return items enriched with sales data (quantity_sold)
+    const url = new URL(req.url);
+    const event_id = url.searchParams.get('event_id') || undefined;
+    const items = await data.getMenuItemsWithSales(event_id);
     return NextResponse.json(items);
   } catch (err: any) {
     return new NextResponse(err.message, { status: 500 });
@@ -50,6 +53,20 @@ export async function PUT(req: Request) {
       calories: typeof body.calories !== 'undefined' ? Number(body.calories) : undefined
     };
     const res = await data.updateMenuItem(id, updates);
+    return NextResponse.json(res);
+  } catch (err: any) {
+    return new NextResponse(err.message, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const idParam = url.searchParams.get('id');
+    if (!idParam) return new NextResponse('Missing id', { status: 400 });
+    const id = Number(idParam);
+    const res = await data.deleteMenuItem(id);
+    if (!res.success) return new NextResponse(res.message || 'Failed to delete', { status: 400 });
     return NextResponse.json(res);
   } catch (err: any) {
     return new NextResponse(err.message, { status: 500 });
