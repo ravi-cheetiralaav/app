@@ -9,12 +9,14 @@ interface AnimatedCardProps extends Omit<CardProps, 'component'> {
   children: React.ReactNode;
   hoverable?: boolean;
   delay?: number;
+  glowColor?: string;
 }
 
 const AnimatedCard: React.FC<AnimatedCardProps> = ({
   children,
   hoverable = true,
   delay = 0,
+  glowColor,
   ...props
 }) => {
   return (
@@ -28,6 +30,25 @@ const AnimatedCard: React.FC<AnimatedCardProps> = ({
       <Card
         {...props}
         sx={{
+          position: 'relative',
+          '&::after': glowColor ? {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            borderRadius: 'inherit',
+            padding: '2px',
+            background: `linear-gradient(45deg, ${glowColor}, transparent, ${glowColor})`,
+            mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+            maskComposite: 'exclude',
+            opacity: 0,
+            transition: 'opacity 0.3s ease',
+          } : {},
+          '&:hover::after': glowColor ? {
+            opacity: 0.6,
+          } : {},
           ...props.sx,
         }}
       >

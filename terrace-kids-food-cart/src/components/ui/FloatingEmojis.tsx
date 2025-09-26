@@ -38,7 +38,7 @@ const FloatingEmojis: React.FC<FloatingEmojisProps> = ({
           emoji: emojiList[Math.floor(Math.random() * emojiList.length)],
           x: Math.random() * 100,
           y: Math.random() * 100,
-          delay: Math.random() * 2,
+          delay: Math.random() * 3,
         });
       }
 
@@ -75,7 +75,7 @@ const FloatingEmojis: React.FC<FloatingEmojisProps> = ({
               scale: 0,
             }}
             transition={{
-              duration: 4,
+              duration: 6,
               delay: emoji.delay,
               ease: [0.4, 0.0, 0.2, 1],
               times: [0, 0.2, 0.8, 1],

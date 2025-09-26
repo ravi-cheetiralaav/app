@@ -9,8 +9,8 @@ import { motion } from 'framer-motion';
 import CustomerLoginForm from '@/components/customer/CustomerLoginForm';
 import FloatingEmojis from '@/components/ui/FloatingEmojis';
 import PageWrapper from '@/components/ui/PageWrapper';
+import Logo from '@/components/ui/Logo';
 import { staggerContainer, staggerItem } from '@/lib/theme';
-import Image from 'next/image';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -56,12 +56,13 @@ export default function LoginPage() {
           >
             <motion.div variants={staggerItem}>
               <Box sx={{ mb: 2 }}>
-                <Image
-                  src="/images/TKFC-5.jpg"
-                  alt="Terrace Kids Food Cart Logo"
-                  width={96}
-                  height={96}
-                  style={{ borderRadius: '12px', display: 'block', margin: '0 auto' }}
+                <Logo 
+                  size="medium"
+                  hoverable={true}
+                  style={{ 
+                    margin: '0 auto',
+                    display: 'block',
+                  }}
                 />
               </Box>
 

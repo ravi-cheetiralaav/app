@@ -14,6 +14,7 @@ import { Person } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import AnimatedButton from '@/components/ui/AnimatedButton';
 import AnimatedCard from '@/components/ui/AnimatedCard';
+import SuccessAnimation from '@/components/ui/SuccessAnimation';
 import { staggerItem } from '@/lib/theme';
 
 interface CustomerLoginFormProps {
@@ -24,6 +25,7 @@ const CustomerLoginForm: React.FC<CustomerLoginFormProps> = ({ onSuccess }) => {
   const [userId, setUserId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,9 +48,8 @@ const CustomerLoginForm: React.FC<CustomerLoginFormProps> = ({ onSuccess }) => {
       if (result?.error) {
         setError('Invalid User ID. Please check and try again.');
       } else if (result?.ok) {
-        onSuccess?.();
-        router.push('/customer/dashboard');
-        router.refresh();
+        setShowSuccess(true);
+        // Success animation will handle navigation
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
@@ -133,6 +134,17 @@ const CustomerLoginForm: React.FC<CustomerLoginFormProps> = ({ onSuccess }) => {
           </Box>
         </motion.div>
       </motion.div>
+      
+      <SuccessAnimation 
+        show={showSuccess}
+        message="Welcome! 🎉"
+        emoji="🎊"
+        onComplete={() => {
+          onSuccess?.();
+          router.push('/customer/dashboard');
+          router.refresh();
+        }}
+      />
     </AnimatedCard>
   );
 };
