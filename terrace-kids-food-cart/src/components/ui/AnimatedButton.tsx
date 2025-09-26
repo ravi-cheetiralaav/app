@@ -68,22 +68,24 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
             animate={{ opacity: 1 }}
             transition={{ duration: 0.15 }}
           >
-            {/* responsive image loader - prefer animated gif if present in either /logos or /images, fallback to existing JPG */}
-            <picture>
-              {/* preferred locations for an animated food-cart GIF if you add one */}
-              <source srcSet="/logos/food-cart.gif" type="image/gif" />
-              <source srcSet="/images/food-cart.gif" type="image/gif" />
-              <img
-                src="/images/TKFC-5.jpg"
-                alt="loading"
-                style={{
-                  width: '1.6rem',
-                  height: '1.6rem',
-                  objectFit: 'contain',
-                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))',
-                }}
-              />
-            </picture>
+            {/* Load animated GIF and fallback to JPG if the GIF fails to load */}
+            <img
+              src="/images/food-cart.gif"
+              alt="loading"
+              onError={(e) => {
+                const img = e.currentTarget as HTMLImageElement;
+                if (!img.dataset.fallback) {
+                  img.dataset.fallback = '1';
+                  img.src = '/images/TKFC-5.jpg';
+                }
+              }}
+              style={{
+                width: '1.6rem',
+                height: '1.6rem',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))',
+              }}
+            />
           </motion.div>
         )}
       </Button>

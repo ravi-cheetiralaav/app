@@ -14,9 +14,13 @@ RUN npm run build
 FROM node:18-alpine AS runner
 WORKDIR /app
 
-# Only install production dependencies
+# Copy package metadata (not strictly required but keeps image metadata consistent)
 COPY package.json package-lock.json ./
-RUN npm ci --production
+
+# Copy node_modules from the builder stage. This avoids re-running `npm ci` in the
+# runner where native modules (e.g. better-sqlite3) would attempt to rebuild and
+# fail due to missing build tools in the slim runtime image.
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy built files from builder
 COPY --from=builder /app/.next .next

@@ -128,7 +128,7 @@ const CustomerLoginForm: React.FC<CustomerLoginFormProps> = ({ onSuccess }) => {
         <motion.div variants={staggerItem}>
           <Box mt={3} textAlign="center">
             <Typography variant="body2" color="text.secondary">
-              Don&apos;t have a User ID? Ask an adult to create one for you! 😊
+              Don&apos;t have a User ID? Ask admin to create one for you! 😊
             </Typography>
           </Box>
         </motion.div>

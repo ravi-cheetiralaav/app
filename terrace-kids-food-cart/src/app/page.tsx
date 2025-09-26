@@ -121,37 +121,9 @@ export default function LandingPage() {
 
             {/* Page title removed as requested */}
 
-            <motion.div variants={staggerItem}>
-              <Typography 
-                variant="h5" 
-                color="text.secondary" 
-                paragraph
-                sx={{ maxWidth: 600, mx: 'auto', mb: 4 }}
-              >
-                A fun and educational platform where kids learn business skills 
-                while serving delicious food to neighbors and friends! 🎉
-              </Typography>
-            </motion.div>
+            {/* Intro paragraph intentionally removed per request */}
 
-            <motion.div variants={staggerItem}>
-              <Stack 
-                direction={{ xs: 'column', sm: 'row' }} 
-                spacing={3}
-                justifyContent="center"
-                alignItems="center"
-              >
-                <AnimatedButton
-                  component={Link}
-                  href="/login"
-                  variant="contained"
-                  size="large"
-                  emoji="❤️"
-                  sx={{ minWidth: 200 }}
-                >
-                  Treat your self
-                </AnimatedButton>
-              </Stack>
-            </motion.div>
+            {/* Hero CTA removed - button moved to the Call To Action section below */}
           </Box>
 
           {/* Features Section */}
@@ -165,7 +137,7 @@ export default function LandingPage() {
               sx={{ 
                 p: 6, 
                 textAlign: 'center',
-                background: `linear-gradient(135deg, ${theme.palette.secondary.main}, ${theme.palette.secondary.light})`,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
                 color: 'white'
               }}
             >
@@ -174,7 +146,7 @@ export default function LandingPage() {
               </Typography>
               
               <Typography variant="h6" paragraph sx={{ maxWidth: 600, mx: 'auto' }}>
-                Join us — support young entrepreneurs, enjoy tasty treats, and help kids build real-world skills!
+                Join us to support young entrepreneurs, enjoy tasty treats, and help kids build real-world skills!
               </Typography>
               
               <Stack 
@@ -184,7 +156,17 @@ export default function LandingPage() {
                 alignItems="center"
                 mt={4}
               >
-                {/* Customer Login intentionally removed — use the primary "Treat your self" CTA above */}
+                <AnimatedButton
+                  component={Link}
+                  href="/login"
+                  variant="contained"
+                  color="secondary"
+                  size="large"
+                  emoji="❤️"
+                  sx={{ minWidth: 200 }}
+                >
+                  Treat Yourself
+                </AnimatedButton>
               </Stack>
             </Paper>
           </motion.div>
