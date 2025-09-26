@@ -2,10 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { AppBar, Toolbar, Box, useTheme, useMediaQuery } from '@mui/material';
 import { useSession } from 'next-auth/react';
 import AnimatedButton from '@/components/ui/AnimatedButton';
+import Logo from '@/components/ui/Logo';
 
 export default function Header() {
   const theme = useTheme();
@@ -19,12 +19,13 @@ export default function Header() {
       <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
         <Box display="flex" alignItems="center">
           <Link href="/" aria-label="Home">
-            <Image
-              src="/images/TKFC-5.jpg"
-              alt="Terrace Kids Food Cart Logo"
-              width={isSmall ? 56 : 80}
-              height={isSmall ? 56 : 80}
-              style={{ borderRadius: 12, display: 'block' }}
+            <Logo 
+              size="small" 
+              hoverable={true}
+              style={{ 
+                width: isSmall ? 56 : 64,
+                height: isSmall ? 56 : 64,
+              }}
             />
           </Link>
         </Box>

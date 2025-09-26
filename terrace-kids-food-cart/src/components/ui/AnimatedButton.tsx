@@ -4,6 +4,7 @@ import React from 'react';
 import { Button, ButtonProps } from '@mui/material';
 import { motion } from 'framer-motion';
 import { buttonVariants } from '@/lib/theme';
+import Logo from './Logo';
 
 interface AnimatedButtonProps extends ButtonProps {
   emoji?: string;
@@ -45,9 +46,22 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
           transition={{ duration: 0.2 }}
         >
           {emoji && (
-            <span style={{ fontSize: '1.2em' }} role="img" aria-hidden="true">
+            <motion.span 
+              style={{ fontSize: '1.2em' }} 
+              role="img" 
+              aria-hidden="true"
+              animate={!disabled && !loading ? {
+                rotate: [0, 10, -10, 0],
+                scale: [1, 1.1, 1],
+              } : {}}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                repeatDelay: 3,
+              }}
+            >
               {emoji}
-            </span>
+            </motion.span>
           )}
           {children}
         </motion.div>
@@ -68,22 +82,15 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
             animate={{ opacity: 1 }}
             transition={{ duration: 0.15 }}
           >
-            {/* responsive image loader - prefer animated gif if present in either /logos or /images, fallback to existing JPG */}
-            <picture>
-              {/* preferred locations for an animated food-cart GIF if you add one */}
-              <source srcSet="/logos/food-cart.gif" type="image/gif" />
-              <source srcSet="/images/food-cart.gif" type="image/gif" />
-              <img
-                src="/images/TKFC-5.jpg"
-                alt="loading"
-                style={{
-                  width: '1.6rem',
-                  height: '1.6rem',
-                  objectFit: 'contain',
-                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))',
-                }}
-              />
-            </picture>
+            <Logo 
+              size="small"
+              animated={true}
+              style={{
+                width: '1.6rem',
+                height: '1.6rem',
+                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))',
+              }}
+            />
           </motion.div>
         )}
       </Button>

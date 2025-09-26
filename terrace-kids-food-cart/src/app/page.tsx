@@ -27,6 +27,7 @@ import AnimatedButton from '@/components/ui/AnimatedButton';
 import AnimatedCard from '@/components/ui/AnimatedCard';
 import FloatingEmojis from '@/components/ui/FloatingEmojis';
 import PageWrapper from '@/components/ui/PageWrapper';
+import Logo from '@/components/ui/Logo';
 import { staggerContainer, staggerItem } from '@/lib/theme';
 
 const features = [
@@ -93,30 +94,14 @@ export default function LandingPage() {
           {/* Hero Section */}
           <Box textAlign="center" py={6}>
             <motion.div variants={staggerItem}>
-              <motion.div
-                animate={{ 
-                  scale: [1, 1.05, 1],
-                  rotate: [0, 2, -2, 0] 
+              <Logo 
+                size="large" 
+                animated={true}
+                style={{ 
+                  margin: '0 auto 24px auto',
+                  display: 'block',
                 }}
-                transition={{ 
-                  duration: 4, 
-                  repeat: Infinity,
-                  repeatDelay: 2
-                }}
-              >
-                <Image
-                  src="/images/TKFC-5.jpg"
-                  alt="Terrace Kids Food Cart Logo"
-                  width={200}
-                  height={200}
-                  style={{
-                    borderRadius: '50%',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-                    margin: '0 auto 24px auto',
-                    display: 'block',
-                  }}
-                />
-              </motion.div>
+              />
             </motion.div>
 
             {/* Page title removed as requested */}
