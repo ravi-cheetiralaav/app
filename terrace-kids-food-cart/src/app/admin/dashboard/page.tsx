@@ -53,7 +53,8 @@ export default function AdminDashboard() {
   }
 
   if (status === 'unauthenticated') {
-    router.push('/login?tab=admin');
+    // Redirect unauthenticated admins to the new dedicated admin login page
+    router.push('/admin');
     return null;
   }
 

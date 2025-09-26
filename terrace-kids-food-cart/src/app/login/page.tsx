@@ -1,17 +1,10 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
-import {
-  Box,
-  Tabs,
-  Tab,
-  Typography,
-  Paper,
-} from '@mui/material';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Box, Typography, Paper } from '@mui/material';
+import { motion } from 'framer-motion';
 import CustomerLoginForm from '@/components/customer/CustomerLoginForm';
-import AdminLoginForm from '@/components/admin/AdminLoginForm';
 import FloatingEmojis from '@/components/ui/FloatingEmojis';
 import PageWrapper from '@/components/ui/PageWrapper';
 import { staggerContainer, staggerItem } from '@/lib/theme';
@@ -23,56 +16,21 @@ interface TabPanelProps {
   value: number;
 }
 
-function TabPanel({ children, value, index, ...other }: TabPanelProps) {
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`login-tabpanel-${index}`}
-      aria-labelledby={`login-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Box pt={4}>
-              {children}
-            </Box>
-          </motion.div>
-        </AnimatePresence>
-      )}
-    </div>
-  );
-}
-
-function a11yProps(index: number) {
-  return {
-    id: `login-tab-${index}`,
-    'aria-controls': `login-tabpanel-${index}`,
-  };
-}
+// no tab panels needed — this page only exposes customer login to public
 
 export default function LoginPage() {
+  // If a user hits /login?tab=admin, redirect to the dedicated admin login page
   const searchParams = useSearchParams();
-  const [tabValue, setTabValue] = useState(0);
+  const router = useRouter();
 
   useEffect(() => {
-    // Check URL params to set initial tab
     const tab = searchParams?.get('tab');
     if (tab === 'admin') {
-      setTabValue(1);
+      // client-side redirect to avoid route/page conflict
+      router.replace('/admin');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
-
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
 
   return (
     <>
@@ -123,50 +81,11 @@ export default function LoginPage() {
                   border: '1px solid rgba(255,255,255,0.3)',
                 }}
               >
-                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                  <Tabs 
-                    value={tabValue} 
-                    onChange={handleTabChange} 
-                    variant="fullWidth"
-                    sx={{
-                      '& .MuiTab-root': {
-                        textTransform: 'none',
-                        fontSize: '1.1rem',
-                        fontWeight: 600,
-                        py: 2,
-                      },
-                    }}
-                  >
-                    <Tab 
-                      label={
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          👨‍👩‍👧‍👦 Customer
-                        </span>
-                      } 
-                      {...a11yProps(0)} 
-                    />
-                    <Tab 
-                      label={
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          ⚙️ Admin
-                        </span>
-                      } 
-                      {...a11yProps(1)} 
-                    />
-                  </Tabs>
-                </Box>
-
-                <TabPanel value={tabValue} index={0}>
-                  <Box display="flex" justifyContent="center" p={3}>
+                <Box p={3}>
+                  <Box display="flex" justifyContent="center">
                     <CustomerLoginForm />
                   </Box>
-                </TabPanel>
-
-                <TabPanel value={tabValue} index={1}>
-                  <Box display="flex" justifyContent="center" p={3}>
-                    <AdminLoginForm />
-                  </Box>
-                </TabPanel>
+                </Box>
               </Paper>
             </motion.div>
 

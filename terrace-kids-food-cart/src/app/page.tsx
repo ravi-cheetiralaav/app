@@ -184,41 +184,7 @@ export default function LandingPage() {
                 alignItems="center"
                 mt={4}
               >
-                <AnimatedButton
-                  component={Link}
-                  href="/login"
-                  variant="contained"
-                  size="large"
-                  emoji="👨‍👩‍👧‍👦"
-                  sx={{ 
-                    backgroundColor: 'white',
-                    color: theme.palette.primary.main,
-                    minWidth: 200,
-                    '&:hover': {
-                      backgroundColor: 'rgba(255,255,255,0.9)',
-                    }
-                  }}
-                >
-                  Customer Login
-                </AnimatedButton>
-                <AnimatedButton
-                  component={Link}
-                  href="/login?tab=admin"
-                  variant="outlined"
-                  size="large"
-                  emoji="⚙️"
-                  sx={{ 
-                    borderColor: 'white',
-                    color: 'white',
-                    minWidth: 200,
-                    '&:hover': {
-                      borderColor: 'white',
-                      backgroundColor: 'rgba(255,255,255,0.1)',
-                    }
-                  }}
-                >
-                  Admin Panel
-                </AnimatedButton>
+                {/* Customer Login intentionally removed — use the primary "Treat your self" CTA above */}
               </Stack>
             </Paper>
           </motion.div>
