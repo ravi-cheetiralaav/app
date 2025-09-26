@@ -18,7 +18,6 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -26,24 +25,30 @@ import {
   Stack,
   Paper,
   IconButton,
+  Chip,
   FormControlLabel,
   Switch
 } from '@mui/material';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import PageWrapper from '@/components/ui/PageWrapper';
 import AnimatedButton from '@/components/ui/AnimatedButton';
 import { Edit } from '@mui/icons-material';
 import { Delete } from '@mui/icons-material';
 
-type MenuItem = any;
+type MenuItemType = any;
 
 export default function AdminMenuPage() {
-  const [items, setItems] = useState<MenuItem[]>([]);
+  const [items, setItems] = useState<MenuItemType[]>([]);
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<MenuItem | null>(null);
+  const [editing, setEditing] = useState<MenuItemType | null>(null);
   const [form, setForm] = useState<any>({ name: '', description: '', price: 0, quantity_available: 0, category: 'Food', is_active: true });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [events, setEvents] = useState<any[]>([]);
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [menuItemId, setMenuItemId] = useState<number | null>(null);
 
   useEffect(() => { fetchItems(); }, []);
 
@@ -85,7 +90,7 @@ export default function AdminMenuPage() {
   }
 
   function openCreate() { setEditing(null); setForm({ name: '', description: '', price: 0, quantity_available: 0, category: '', is_active: true, ingredients: '', health_benefits: '', qty_per_unit: '', calories: '', event_id: activeEvent?.event_id || '' }); setErrors({}); setOpen(true); }
-  function openEdit(item: MenuItem) { setEditing(item); setForm({ ...item, ingredients: Array.isArray(item.ingredients) ? item.ingredients.join(', ') : (item.ingredients || ''), health_benefits: Array.isArray(item.health_benefits) ? item.health_benefits.join(', ') : (item.health_benefits || ''), qty_per_unit: item.qty_per_unit || '', calories: item.calories || '', event_id: item.event_id || '' }); setErrors({}); setOpen(true); }
+  function openEdit(item: MenuItemType) { setEditing(item); setForm({ ...item, ingredients: Array.isArray(item.ingredients) ? item.ingredients.join(', ') : (item.ingredients || ''), health_benefits: Array.isArray(item.health_benefits) ? item.health_benefits.join(', ') : (item.health_benefits || ''), qty_per_unit: item.qty_per_unit || '', calories: item.calories || '', event_id: item.event_id || '' }); setErrors({}); setOpen(true); }
 
   async function submit() {
     // client-side validation
@@ -109,7 +114,7 @@ export default function AdminMenuPage() {
     if (res.ok) { setOpen(false); fetchItems(); } else { const txt = await res.text(); alert('Error: ' + txt); }
   }
 
-  async function deleteItem(item: MenuItem) {
+  async function deleteItem(item: MenuItemType) {
     if (!confirm(`Delete ${item.name}? This cannot be undone.`)) return;
     try {
       const res = await fetch(`/api/admin/menu?id=${item.id}`, { method: 'DELETE' });
@@ -140,6 +145,28 @@ export default function AdminMenuPage() {
     );
   }
 
+  // Helper: choose thumbnail path based on per-item image if present, otherwise by category
+  function getThumbnailForItem(it: any) {
+    // If the item has an explicit image field, use it (assume it's a path under /images or an absolute URL)
+    if (it.image && typeof it.image === 'string' && it.image.trim().length > 0) return it.image.startsWith('/') ? it.image : it.image;
+    const cat = String(it.category || 'food').toLowerCase();
+    if (cat.includes('bev')) return '/images/beverage.gif';
+    if (cat.includes('dessert')) return '/images/dessert-category.jpg';
+    if (cat.includes('snack')) return '/images/snack-category.jpg';
+  if (cat.includes('food')) return '/images/healthy-food.gif';
+    // fallback
+    return '/images/TKFC-5.jpg';
+  }
+
+  // Map category to chip color
+  function chipColorForCategory(cat?: string) {
+    const c = String(cat || '').toLowerCase();
+    if (c.includes('bev')) return 'primary';
+    if (c.includes('dessert')) return 'secondary';
+    if (c.includes('snack')) return 'default';
+    return 'default';
+  }
+
   return (
     <>
       <FloatingEmojis category="food" count={5} />
@@ -163,24 +190,65 @@ export default function AdminMenuPage() {
             </Box>
           </motion.div>
 
+          {/* Overflow menu for small screens: grouped actions for the selected item */}
+          <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => { setMenuAnchor(null); setMenuItemId(null); }}>
+            <MenuItem onClick={() => { const it = items.find(i => i.id === menuItemId); if (it) { openEdit(it); } setMenuAnchor(null); setMenuItemId(null); }}>Edit</MenuItem>
+            <MenuItem onClick={() => { const it = items.find(i => i.id === menuItemId); if (it) { /* toggle active */ const updated = { ...it, is_active: !it.is_active }; fetch(`/api/admin/menu?id=${it.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) }).then(() => fetchItems()); } setMenuAnchor(null); setMenuItemId(null); }}>{/* show label based on target state */}{menuItemId ? (items.find(i => i.id === menuItemId)?.is_active ? 'Deactivate' : 'Activate') : 'Toggle Active'}</MenuItem>
+            <MenuItem onClick={() => { const it = items.find(i => i.id === menuItemId); if (it) { deleteItem(it); } setMenuAnchor(null); setMenuItemId(null); }}>Delete</MenuItem>
+          </Menu>
+
           <motion.div variants={staggerItem}>
             <Stack spacing={2}>
               {items.map(it => (
                 <motion.div key={it.id} variants={staggerItem}>
-                  <Paper sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Box>
-                      <Typography variant="h6">{it.name} <Typography component="span" color="text.secondary">${it.price}</Typography></Typography>
-                      <Typography variant="body2">{it.description}</Typography>
-                        <Box mt={1} display="flex" gap={2}>
-                          <Typography variant="caption" color="text.secondary">Actual: {Number(it.quantity_available || 0) + Number(it.quantity_sold || 0)}</Typography>
-                          <Typography variant="caption" color="text.secondary">Sold: {it.quantity_sold ?? 0}</Typography>
-                          <Typography variant="caption" color="text.secondary">Available: {it.quantity_available ?? 0}</Typography>
-                        </Box>
+                  <Paper sx={{ p: 1.5, display: 'flex', gap: 1.5, alignItems: 'center', flexDirection: { xs: 'column', sm: 'row' } }}>
+                    {/* Left: thumbnail */}
+                    <Box sx={{ flex: '0 0 auto' }}>
+                      <Box sx={{ width: 64, height: 48, borderRadius: 1.5, overflow: 'hidden', background: 'linear-gradient(135deg, rgba(0,0,0,0.03), rgba(0,0,0,0.01))' }}>
+                        <Image src={getThumbnailForItem(it)} alt={it.name} width={64} height={48} style={{ objectFit: 'cover' }} />
+                      </Box>
                     </Box>
-                    <Box>
-                      <FormControlLabel control={<Switch checked={Boolean(it.is_active)} />} label={it.is_active ? 'Active' : 'Inactive'} />
-                      <IconButton onClick={() => openEdit(it)} aria-label="edit"><Edit /></IconButton>
-                      <IconButton onClick={() => deleteItem(it)} aria-label="delete"><Delete /></IconButton>
+
+                    {/* Middle: details */}
+                    <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>
+                      <Box display="flex" alignItems="center" justifyContent="space-between">
+                        <Box>
+                          <Typography variant="h6" sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                            {it.name}
+                            <Typography component="span" color="text.secondary" sx={{ fontSize: '0.9rem', ml: 1 }}>${it.price}</Typography>
+                          </Typography>
+                          <Box sx={{ mt: 0.5 }}>
+                            <Chip label={it.category || 'Food'} size="small" color={chipColorForCategory(it.category)} sx={{ fontWeight: 500 }} />
+                          </Box>
+                        </Box>
+                      </Box>
+
+                      <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{it.description}</Typography>
+
+                      <Box mt={1} display="flex" gap={2} flexWrap="wrap">
+                        <Typography variant="caption" color="text.secondary">Actual: <Box component="span" sx={{ color: 'primary.main', fontWeight: 700, ml: 0.5 }}>{Number(it.quantity_available || 0) + Number(it.quantity_sold || 0)}</Box></Typography>
+                        <Typography variant="caption" color="text.secondary">Sold: <Box component="span" sx={{ color: 'primary.main', fontWeight: 700, ml: 0.5 }}>{it.quantity_sold ?? 0}</Box></Typography>
+                        <Typography variant="caption" color="text.secondary">Available: <Box component="span" sx={{ color: 'primary.main', fontWeight: 700, ml: 0.5 }}>{it.quantity_available ?? 0}</Box></Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Right: actions */}
+                    <Box sx={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                      {/* Show switch on larger screens, hide on xs in favor of overflow menu */}
+                      <FormControlLabel control={<Switch checked={Boolean(it.is_active)} />} label={it.is_active ? 'Active' : 'Inactive'} sx={{ display: { xs: 'none', sm: 'flex' } }} />
+
+                      {/* Action buttons visible on sm+ */}
+                      <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', sm: 'flex' } }}>
+                        <IconButton onClick={() => openEdit(it)} aria-label="edit"><Edit /></IconButton>
+                        <IconButton onClick={() => deleteItem(it)} aria-label="delete"><Delete /></IconButton>
+                      </Stack>
+
+                      {/* Overflow menu for small screens */}
+                      <Box sx={{ display: { xs: 'flex', sm: 'none' } }}>
+                        <IconButton aria-label="more" onClick={(e) => { setMenuAnchor(e.currentTarget); setMenuItemId(it.id); }}>
+                          <MoreVertIcon />
+                        </IconButton>
+                      </Box>
                     </Box>
                   </Paper>
                 </motion.div>

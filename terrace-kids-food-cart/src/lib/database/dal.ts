@@ -211,6 +211,20 @@ class DataAccessLayer {
       updateData.is_active = updates.is_active ? 1 : 0;
     }
     
+    // Defensive: filter updateData to only include real columns in menu_items to avoid attempting to update
+    // computed fields like `quantity_sold` that don't exist in the table.
+    try {
+      const cols: any[] = await this.db.executeQuery(`PRAGMA table_info('menu_items')`);
+      const colNames = Array.isArray(cols) ? cols.map(c => c.name) : [];
+      for (const key of Object.keys(updateData)) {
+        if (!colNames.includes(key)) {
+          delete updateData[key];
+        }
+      }
+    } catch (e) {
+      // If pragma fails for any reason, fall back to original behavior (best-effort)
+    }
+
     return this.db.updateOne('menu_items', { id }, updateData);
   }
 

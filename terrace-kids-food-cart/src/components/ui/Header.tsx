@@ -30,20 +30,7 @@ export default function Header() {
         </Box>
 
         <Box display="flex" alignItems="center" gap={2}>
-          {/* Only render admin link for authenticated admins */}
-          {isAdmin && (
-            <AnimatedButton
-              component={Link}
-              href="/admin"
-              variant="outlined"
-              size="small"
-              sx={{ textTransform: 'none' }}
-            >
-              Admin
-            </AnimatedButton>
-          )}
-
-          {/* right side placeholder - keep header height consistent */}
+          {/* Admin button removed as requested. Keep right-side placeholder so header layout stays consistent. */}
           <Box sx={{ width: isSmall ? 24 : 48 }} />
         </Box>
       </Toolbar>

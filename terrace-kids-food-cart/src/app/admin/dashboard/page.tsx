@@ -35,6 +35,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import AnimatedButton from '@/components/ui/AnimatedButton';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 
@@ -348,29 +349,39 @@ export default function AdminDashboard() {
 
           {/* Orders list (shown by default for admins) */}
           <motion.div variants={staggerItem}>
-            <Box mt={2} mb={2} display="flex" justifyContent="space-between" alignItems="center">
-              <Box>
-                <Typography variant="h5">Recent Orders</Typography>
-                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                  <TextField size="small" placeholder="Search order id or user" value={searchText} onChange={e => setSearchText(e.target.value)} />
-                  <TextField select size="small" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} SelectProps={{ native: true }}>
-                    <option value="">All statuses</option>
-                    <option value="pending">pending</option>
-                    <option value="approved">approved</option>
-                    <option value="rejected">rejected</option>
-                    <option value="scheduled">scheduled</option>
-                    <option value="draft">draft</option>
-                  </TextField>
-                  <AnimatedButton variant="text" onClick={() => fetchOrders()}>Apply</AnimatedButton>
-                </Stack>
+            <Box mt={2} mb={2}>
+              <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems="center" gap={2}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h5">Recent Orders</Typography>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 1 }} alignItems="center">
+                    <TextField size="small" placeholder="Search order id or user" value={searchText} onChange={e => setSearchText(e.target.value)} sx={{ minWidth: 220 }} />
+                    <TextField select size="small" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} SelectProps={{ native: true }} sx={{ minWidth: 160 }}>
+                      <option value="">All statuses</option>
+                      <option value="pending">pending</option>
+                      <option value="approved">approved</option>
+                      <option value="rejected">rejected</option>
+                      <option value="scheduled">scheduled</option>
+                      <option value="draft">draft</option>
+                    </TextField>
+                      <IconButton aria-label="apply filters" size="small" onClick={() => fetchOrders()} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', p: 1 }}>
+                        <FilterListIcon fontSize="small" />
+                      </IconButton>
+                  </Stack>
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: 'center' }}>
+                    <AnimatedButton variant="outlined" color="primary" onClick={() => fetchOrders()} sx={{ minWidth: 120 }}>Refresh</AnimatedButton>
+                    <AnimatedButton variant="contained" color="primary" onClick={generateReport} sx={{ minWidth: 160 }}>Generate Reports</AnimatedButton>
+                  </Stack>
+
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: 'center' }}>
+                    <AnimatedButton variant="outlined" color="error" onClick={() => setDeleteOpen(true)} disabled={selected.size === 0} sx={{ minWidth: 140 }}>Delete Selected</AnimatedButton>
+                    <AnimatedButton variant="contained" color="success" onClick={async () => await bulkAction('approve')} disabled={selected.size===0} sx={{ minWidth: 140 }}>Approve Selected</AnimatedButton>
+                    <AnimatedButton variant="contained" color="inherit" onClick={async () => await bulkAction('reject')} disabled={selected.size===0} sx={{ minWidth: 140 }}>Reject Selected</AnimatedButton>
+                  </Stack>
+                </Box>
               </Box>
-              <Stack direction="row" spacing={1}>
-                <AnimatedButton variant="outlined" color="primary" onClick={() => fetchOrders()}>Refresh</AnimatedButton>
-                <AnimatedButton variant="contained" color="primary" onClick={generateReport}>Generate Reports</AnimatedButton>
-                <AnimatedButton variant="outlined" color="error" onClick={() => setDeleteOpen(true)} disabled={selected.size === 0}>Delete Selected</AnimatedButton>
-                <AnimatedButton variant="contained" color="success" onClick={async () => await bulkAction('approve')} disabled={selected.size===0}>Approve Selected</AnimatedButton>
-                <AnimatedButton variant="contained" color="inherit" onClick={async () => await bulkAction('reject')} disabled={selected.size===0}>Reject Selected</AnimatedButton>
-              </Stack>
             </Box>
 
             {ordersLoading ? (
@@ -400,8 +411,26 @@ export default function AdminDashboard() {
                         <TableCell>
                           <Stack direction="row" spacing={1} alignItems="center">
                             <Typography variant="body2">{o.status}</Typography>
-                            <IconButton size="small" onClick={async () => await singleAction(o.order_id, 'approve')} title="Approve"><CheckIcon fontSize="small" /></IconButton>
-                            <IconButton size="small" onClick={async () => await singleAction(o.order_id, 'reject')} title="Reject"><CloseIcon fontSize="small" /></IconButton>
+                            {/* Approve: only enabled when status is pending or scheduled */}
+                            <IconButton
+                              size="small"
+                              onClick={async () => await singleAction(o.order_id, 'approve')}
+                              title="Approve"
+                              color="success"
+                              disabled={!(o.status === 'pending' || o.status === 'scheduled')}
+                            >
+                              <CheckIcon fontSize="small" />
+                            </IconButton>
+                            {/* Reject: enabled when not already rejected */}
+                            <IconButton
+                              size="small"
+                              onClick={async () => await singleAction(o.order_id, 'reject')}
+                              title="Reject"
+                              color="error"
+                              disabled={o.status === 'rejected'}
+                            >
+                              <CloseIcon fontSize="small" />
+                            </IconButton>
                           </Stack>
                         </TableCell>
                         <TableCell align="right">{o.total_amount}</TableCell>
@@ -422,10 +451,12 @@ export default function AdminDashboard() {
           
           {/* Admin Links */}
           <motion.div variants={staggerItem}>
-            <Box mt={4} display="flex" justifyContent="center" gap={2}>
-              <AnimatedButton variant="contained" color="primary" onClick={() => router.push('/admin/users')}>Manage Users</AnimatedButton>
-              <AnimatedButton variant="outlined" color="primary" onClick={() => router.push('/admin/menu')}>Update Menu</AnimatedButton>
-              <AnimatedButton variant="outlined" color="secondary" onClick={() => setEventsOpen(true)}>Manage Events</AnimatedButton>
+            <Box mt={4} display="flex" justifyContent="center">
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <AnimatedButton variant="contained" color="primary" onClick={() => router.push('/admin/users')} sx={{ minWidth: 160 }}>Manage Users</AnimatedButton>
+                <AnimatedButton variant="outlined" color="primary" onClick={() => router.push('/admin/menu')} sx={{ minWidth: 140 }}>Update Menu</AnimatedButton>
+                <AnimatedButton variant="outlined" color="secondary" onClick={() => setEventsOpen(true)} sx={{ minWidth: 140 }}>Manage Events</AnimatedButton>
+              </Stack>
             </Box>
           </motion.div>
 

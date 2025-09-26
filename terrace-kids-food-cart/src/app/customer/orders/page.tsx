@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, TextField, Alert } from '@mui/material';
+import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, TextField, Alert, Chip } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import PageWrapper from '@/components/ui/PageWrapper';
 import AnimatedCard from '@/components/ui/AnimatedCard';
@@ -38,9 +38,25 @@ export default function CustomerOrdersPage() {
 
   return (
     <PageWrapper>
-      <Box textAlign="center" mb={4}>
-        <Typography variant="h4">My Orders</Typography>
-        <Typography variant="body2" color="text.secondary">Recent orders and their status</Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+        <Box textAlign="left">
+          <Typography variant="h4">My Orders</Typography>
+          <Typography variant="body2" color="text.secondary">Recent orders and their status</Typography>
+        </Box>
+        <Box>
+          <Button variant="outlined" color="inherit" size="small" onClick={() => {
+            // sign out and redirect to home
+            (async () => {
+              try {
+                const res = await fetch('/api/auth/signout', { method: 'POST' });
+              } catch (e) {
+                // ignore
+              }
+              // fallback redirect
+              router.push('/');
+            })();
+          }}>Logout</Button>
+        </Box>
       </Box>
 
       {loading ? <Typography>Loading orders...</Typography> : (
@@ -52,7 +68,12 @@ export default function CustomerOrdersPage() {
                   <Box display="flex" justifyContent="space-between" alignItems="center">
                     <Box>
                       <Typography variant="h6">Order {o.order_id}</Typography>
-                      <Typography>Status: {o.status}</Typography>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="body2" color="text.secondary">Status:</Typography>
+                        <Chip label={o.status} size="small" color={
+                          o.status === 'approved' ? 'success' : o.status === 'pending' ? 'warning' : 'default'
+                        } />
+                      </Box>
                       <Typography>Total: ${o.total_amount}</Typography>
                     </Box>
                     <Box>

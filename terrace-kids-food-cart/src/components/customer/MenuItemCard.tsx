@@ -84,22 +84,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
         )}
 
         <Box p={3} textAlign="center" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-          {/* Item Image */}
-          <Box mb={2}>
-            <Avatar
-              src={item.image || '/images/TKFC-5.jpg'}
-              sx={{
-                width: 80,
-                height: 80,
-                mx: 'auto',
-                borderRadius: 2,
-                border: '3px solid',
-                borderColor: 'primary.light',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-              }}
-              alt={item.name}
-            />
-          </Box>
+          {/* Image intentionally removed per UX request - no spacer to avoid extra vertical gap */}
 
           {/* Item Details */}
           <Typography
@@ -118,21 +103,21 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
             {item.name}
           </Typography>
 
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{
-              minHeight: 60,
-              mb: 2,
-              display: '-webkit-box',
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              flexGrow: 1
-            }}
-          >
-            {item.description}
-          </Typography>
+          {item.description && item.description.trim() !== item.name.trim() && (
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                mb: 2,
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden'
+              }}
+            >
+              {item.description}
+            </Typography>
+          )}
 
           {/* Price */}
           <Typography
