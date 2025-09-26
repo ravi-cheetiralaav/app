@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Box, Typography, Avatar, Button, Fab, useMediaQuery } from '@mui/material';
 import { ShoppingCart, KeyboardArrowUp } from '@mui/icons-material';
@@ -36,8 +35,131 @@ interface CartItem {
   image?: string;
 }
 
-export default function CustomerMenuPage() {
-  const { data: session, status } = useSession();
+// Mock menu data for demo
+const mockMenuItems: MenuItem[] = [
+  {
+    id: 1,
+    name: "Chicken Burger Deluxe",
+    description: "Juicy grilled chicken breast with fresh lettuce, tomatoes, and our special sauce on a toasted bun.",
+    price: 12.99,
+    category: "Meals",
+    quantity_available: 15,
+    is_active: true,
+    event_id: 1
+  },
+  {
+    id: 2,
+    name: "Veggie Pizza Slice",
+    description: "Fresh vegetable pizza with bell peppers, mushrooms, olives, and melted mozzarella cheese.",
+    price: 8.50,
+    category: "Meals",
+    quantity_available: 20,
+    is_active: true,
+    event_id: 1
+  },
+  {
+    id: 3,
+    name: "Fish & Chips",
+    description: "Crispy battered fish served with golden fries and tartar sauce.",
+    price: 14.75,
+    category: "Meals",
+    quantity_available: 10,
+    is_active: true,
+    event_id: 1
+  },
+  {
+    id: 4,
+    name: "Fresh Orange Juice",
+    description: "Freshly squeezed orange juice packed with vitamin C and natural goodness.",
+    price: 4.99,
+    category: "Drinks",
+    quantity_available: 25,
+    is_active: true,
+    event_id: 1
+  },
+  {
+    id: 5,
+    name: "Chocolate Milkshake",
+    description: "Creamy chocolate milkshake topped with whipped cream and chocolate chips.",
+    price: 6.25,
+    category: "Drinks",
+    quantity_available: 18,
+    is_active: true,
+    event_id: 1
+  },
+  {
+    id: 6,
+    name: "Sparkling Water",
+    description: "Refreshing sparkling water with a hint of lemon - perfect for staying hydrated.",
+    price: 2.99,
+    category: "Drinks",
+    quantity_available: 30,
+    is_active: true,
+    event_id: 1
+  },
+  {
+    id: 7,
+    name: "Chocolate Chip Cookies",
+    description: "Warm, freshly baked chocolate chip cookies made with premium chocolate chips.",
+    price: 3.99,
+    category: "Snacks",
+    quantity_available: 24,
+    is_active: true,
+    event_id: 1
+  },
+  {
+    id: 8,
+    name: "Mixed Fruit Bowl",
+    description: "A healthy mix of seasonal fresh fruits including strawberries, grapes, and melon.",
+    price: 5.50,
+    category: "Snacks",
+    quantity_available: 12,
+    is_active: true,
+    event_id: 1
+  },
+  {
+    id: 9,
+    name: "Cheese & Crackers",
+    description: "Artisan cheese selection served with crispy crackers and grape jelly.",
+    price: 7.25,
+    category: "Snacks",
+    quantity_available: 16,
+    is_active: true,
+    event_id: 1
+  },
+  {
+    id: 10,
+    name: "Chocolate Brownie",
+    description: "Rich, fudgy chocolate brownie topped with vanilla ice cream and chocolate sauce.",
+    price: 6.99,
+    category: "Desserts",
+    quantity_available: 8,
+    is_active: true,
+    event_id: 1
+  },
+  {
+    id: 11,
+    name: "Strawberry Cheesecake",
+    description: "Creamy New York style cheesecake topped with fresh strawberries and berry sauce.",
+    price: 8.25,
+    category: "Desserts",
+    quantity_available: 6,
+    is_active: true,
+    event_id: 1
+  },
+  {
+    id: 12,
+    name: "Apple Pie Slice",
+    description: "Traditional homemade apple pie with cinnamon spice, served warm with a scoop of vanilla ice cream.",
+    price: 7.50,
+    category: "Desserts",
+    quantity_available: 10,
+    is_active: true,
+    event_id: 1
+  }
+];
+
+export default function CustomerMenuDemoPage() {
   const router = useRouter();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -51,6 +173,14 @@ export default function CustomerMenuPage() {
   const [isCartExpanded, setIsCartExpanded] = useState(!isMobile);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
+  // Simulate loading menu items
+  useEffect(() => {
+    setTimeout(() => {
+      setItems(mockMenuItems);
+      setLoading(false);
+    }, 1500);
+  }, []);
+
   // Scroll to top functionality
   useEffect(() => {
     const handleScroll = () => {
@@ -62,7 +192,7 @@ export default function CustomerMenuPage() {
 
   // Load cart from localStorage on mount
   useEffect(() => {
-    const savedCart = localStorage.getItem('cart');
+    const savedCart = localStorage.getItem('demo-cart');
     if (savedCart) {
       try {
         setCart(JSON.parse(savedCart));
@@ -75,31 +205,9 @@ export default function CustomerMenuPage() {
   // Save cart to localStorage whenever cart changes
   useEffect(() => {
     if (cart.length >= 0) {
-      localStorage.setItem('cart', JSON.stringify(cart));
+      localStorage.setItem('demo-cart', JSON.stringify(cart));
     }
   }, [cart]);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch('/api/admin/menu');
-        if (!res.ok) {
-          console.error('Failed to fetch menu', await res.text());
-          setItems([]);
-          setLoading(false);
-          return;
-        }
-        const data = await res.json();
-        setItems(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error('Error loading menu', err);
-        setItems([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
 
   // Cart management functions
   const handleAddToCart = (item: MenuItem, quantity: number = 1) => {
@@ -147,53 +255,18 @@ export default function CustomerMenuPage() {
 
   const handleCheckout = async () => {
     setCheckoutLoading(true);
-    try {
-      const payload = {
-        user_id: (session as any)?.user_id || (session as any)?.user?.email || '',
-        event_id: cart.length > 0 ? String(items.find(i => i.id === cart[0].menu_item_id)?.event_id || '') : '',
-        items: cart.map(c => ({ menu_item_id: c.menu_item_id, quantity: c.quantity })),
-        notes: ''
-      };
-      const res = await fetch('/api/customer/orders', { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify(payload) 
-      });
-      
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt || 'Checkout failed');
-      }
-      
-      // Clear cart and navigate to orders page
+    // Simulate checkout process
+    setTimeout(() => {
+      alert('Demo checkout completed! 🎉\nTotal items: ' + cart.reduce((sum, item) => sum + item.quantity, 0));
       setCart([]);
-      localStorage.removeItem('cart');
-      router.push('/customer/orders');
-    } catch (err: any) {
-      alert('Checkout error: ' + (err.message || err));
-    } finally {
+      localStorage.removeItem('demo-cart');
       setCheckoutLoading(false);
-    }
+    }, 2000);
   };
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  if (status === 'loading') {
-    return (
-      <PageWrapper>
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
-          <Typography variant="h5">Loading... 🌟</Typography>
-        </Box>
-      </PageWrapper>
-    );
-  }
-
-  if (status === 'unauthenticated') {
-    router.push('/login');
-    return null;
-  }
 
   // Group items by category for display
   const grouped = items.reduce((acc: Record<string, MenuItem[]>, item: MenuItem) => {
@@ -227,13 +300,13 @@ export default function CustomerMenuPage() {
                     </Button>
                   </Box>
                   <Box position="absolute" top={16} right={16}>
-                    <Button variant="text" size="small" onClick={() => signOut({ callbackUrl: '/' })}>
-                      Logout
+                    <Button variant="text" size="small" onClick={() => router.push('/')}>
+                      Home
                     </Button>
                   </Box>
                   <Avatar sx={{ width: 80, height: 80, mx: 'auto', mb: 3 }}>🍽️</Avatar>
                   <Typography variant="h3" sx={{ fontWeight: 800, mb: 2 }}>
-                    Browse Menu
+                    Browse Menu (Demo)
                   </Typography>
                   <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem' }}>
                     Discover delicious items and add them to your cart
@@ -249,20 +322,6 @@ export default function CustomerMenuPage() {
                       Loading delicious items... 🍽️
                     </Typography>
                     <MenuItemSkeleton count={6} />
-                  </Box>
-                </motion.div>
-              )}
-
-              {/* Empty State */}
-              {!loading && items.length === 0 && (
-                <motion.div variants={staggerItem}>
-                  <Box textAlign="center" py={8}>
-                    <Typography variant="h5" color="text.secondary" sx={{ mb: 2 }}>
-                      No menu items available 🤷‍♂️
-                    </Typography>
-                    <Typography variant="body1" color="text.disabled">
-                      Please check back later for delicious options!
-                    </Typography>
                   </Box>
                 </motion.div>
               )}

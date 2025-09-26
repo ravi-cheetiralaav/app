@@ -35,6 +35,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import AnimatedButton from '@/components/ui/AnimatedButton';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
@@ -51,7 +53,8 @@ export default function AdminDashboard() {
   }
 
   if (status === 'unauthenticated') {
-    router.push('/login?tab=admin');
+    // Redirect unauthenticated admins to the new dedicated admin login page
+    router.push('/admin');
     return null;
   }
 
@@ -74,6 +77,9 @@ export default function AdminDashboard() {
   const [deleteReason, setDeleteReason] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteResults, setDeleteResults] = useState<any[] | null>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMsg, setSnackbarMsg] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'info' | 'warning' | 'error'>('info');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [searchText, setSearchText] = useState<string>('');
 
@@ -128,8 +134,7 @@ export default function AdminDashboard() {
         const q = searchText.trim().toLowerCase();
         filtered = filtered.filter((o: any) => (o.order_id || '').toLowerCase().includes(q) || (o.user_id || '').toLowerCase().includes(q));
       }
-      setOrders(filtered);
-      setOrders(list);
+  setOrders(filtered);
     } catch (err) {
       console.error('Failed to fetch orders', err);
       setOrders([]);
@@ -244,6 +249,12 @@ export default function AdminDashboard() {
     setDeleteLoading(true);
     try {
       const order_ids = Array.from(selected);
+      // Optimistic update: remove selected orders from UI immediately
+      const prevOrders = orders;
+      const remaining = orders.filter(o => !order_ids.includes(o.order_id));
+      setOrders(remaining);
+      setSelected(new Set());
+
       const res = await fetch('/api/admin/orders', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -251,19 +262,35 @@ export default function AdminDashboard() {
       });
       if (!res.ok) {
         const txt = await res.text();
+        // rollback optimistic update
+        setOrders(prevOrders);
         throw new Error(txt || 'Delete failed');
       }
       const data = await res.json();
       setDeleteResults(data?.results || null);
       setDeleteOpen(false);
-      setSelected(new Set());
-      await fetchOrders();
+      // show success snackbar
+      setSnackbarMsg(`Deleted ${Array.isArray(data?.results) ? data.results.filter((r:any)=>r.success).length : order_ids.length} order(s)`);
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      // if any failed, restore those orders by refetching
+      const failed = (data?.results || []).filter((r:any)=>!r.success).map((r:any)=>r.order_id);
+      if (failed.length > 0) {
+        await fetchOrders();
+        setSnackbarMsg(`Failed to delete ${failed.length} order(s)`);
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+      }
     } catch (err: any) {
       alert('Delete failed: ' + (err?.message || String(err)));
     } finally {
       setDeleteLoading(false);
       setDeleteReason('');
     }
+  }
+
+  function handleSnackbarClose() {
+    setSnackbarOpen(false);
   }
 
   useEffect(() => {
@@ -412,9 +439,23 @@ export default function AdminDashboard() {
                   {events.length === 0 && <Typography variant="body2" color="text.secondary">No events yet</Typography>}
                   {events.map((ev: any) => (
                     <ListItem key={ev.event_id} secondaryAction={
-                      <IconButton edge="end" aria-label="edit" onClick={() => setEventForm({ event_id: ev.event_id, name: ev.name, event_date: ev.event_date, cutoff_date: ev.cutoff_date, is_active: !!ev.is_active })}>
-                        <EditIcon />
-                      </IconButton>
+                      <Stack direction="row" spacing={1}>
+                        <IconButton edge="end" aria-label="edit" onClick={() => setEventForm({ event_id: ev.event_id, name: ev.name, event_date: ev.event_date, cutoff_date: ev.cutoff_date, is_active: !!ev.is_active })}>
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton edge="end" aria-label="delete" onClick={async () => {
+                          if (!confirm(`Delete event ${ev.name}? This will remove related menu items and orders.`)) return;
+                          try {
+                            const res = await fetch(`/api/admin/events?event_id=${encodeURIComponent(ev.event_id)}`, { method: 'DELETE' });
+                            if (!res.ok) throw new Error(await res.text());
+                            await fetchEvents();
+                          } catch (err) {
+                            alert('Failed to delete event: ' + (err as any).message || err);
+                          }
+                        }}>
+                          🗑️
+                        </IconButton>
+                      </Stack>
                     }>
                       <ListItemText primary={`${ev.name} (${ev.event_date})`} secondary={`Cutoff: ${ev.cutoff_date} ${ev.is_active ? ' • Active' : ''}`} />
                     </ListItem>
@@ -476,6 +517,13 @@ export default function AdminDashboard() {
           </Dialog>
         </motion.div>
       </PageWrapper>
+      <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleSnackbarClose} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMsg}
+        </Alert>
+      </Snackbar>
     </>
   );
 }
+
+// Add Snackbar outside the component? No - component already returns; we'll add it inside the return by editing above. 

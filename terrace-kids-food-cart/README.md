@@ -34,3 +34,12 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Admin access
+
+The admin panel has been moved to a dedicated route to avoid exposing admin controls to customers.
+
+- Admin login page: `/admin`
+- If any external links point to `/login?tab=admin`, the app will automatically redirect them to `/admin`.
+
+Only authenticated users with admin privileges should see the admin link in the site header.

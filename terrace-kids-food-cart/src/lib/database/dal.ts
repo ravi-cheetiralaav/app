@@ -3,9 +3,22 @@ import { User, Event, MenuItem, Order, OrderItem, Feedback } from '../types';
 
 class DataAccessLayer {
   private db: DatabaseManager;
+  private ordersHasIsDeleted?: boolean;
 
   constructor() {
     this.db = DatabaseManager.getInstance();
+  }
+
+  // Lazily check whether the orders table has an is_deleted column
+  private async ensureOrdersHasIsDeleted(): Promise<boolean> {
+    if (typeof this.ordersHasIsDeleted !== 'undefined') return this.ordersHasIsDeleted;
+    try {
+      const cols: any[] = await this.db.executeQuery(`PRAGMA table_info('orders')`);
+      this.ordersHasIsDeleted = Array.isArray(cols) && cols.some(c => c && c.name === 'is_deleted');
+    } catch (e) {
+      this.ordersHasIsDeleted = false;
+    }
+    return this.ordersHasIsDeleted;
   }
 
   // User operations
@@ -78,6 +91,25 @@ class DataAccessLayer {
     return this.db.updateOne('events', { event_id }, updateData);
   }
 
+  // Permanently delete an event and cascade-delete related rows (orders, order_items, menu_items)
+  async deleteEvent(event_id: string): Promise<{ success: boolean; message?: string }> {
+    return this.executeTransaction(async () => {
+      try {
+        // Delete order_items for orders associated with this event
+        await this.db.executeNonQuery(`DELETE FROM order_items WHERE order_id IN (SELECT order_id FROM orders WHERE event_id = ?);`, [event_id]);
+        // Delete orders for this event
+        await this.db.executeNonQuery(`DELETE FROM orders WHERE event_id = ?;`, [event_id]);
+        // Delete menu items for this event
+        await this.db.executeNonQuery(`DELETE FROM menu_items WHERE event_id = ?;`, [event_id]);
+        // Finally delete the event row
+        const del = await this.db.deleteOne('events', { event_id });
+        return { success: del.success && del.changes > 0, message: del.success ? 'Event deleted' : 'No event deleted' };
+      } catch (err: any) {
+        throw new Error('Failed to delete event: ' + String(err));
+      }
+    });
+  }
+
   // Menu item operations
   async getMenuItems(event_id?: string): Promise<MenuItem[]> {
     const conditions = event_id ? { event_id, is_active: 1 } : { is_active: 1 };
@@ -89,6 +121,43 @@ class DataAccessLayer {
       qty_per_unit: item.qty_per_unit,
       ingredients: typeof item.ingredients === 'string' ? JSON.parse(item.ingredients) : item.ingredients,
       health_benefits: typeof item.health_benefits === 'string' ? JSON.parse(item.health_benefits) : item.health_benefits,
+      is_active: Boolean(item.is_active)
+    }));
+  }
+
+  // Return menu items along with aggregated sold quantity (sum of order_items.quantity)
+  async getMenuItemsWithSales(event_id?: string): Promise<MenuItem[]> {
+    const params: any[] = [];
+    const whereClause = event_id ? 'WHERE mi.event_id = ?' : '';
+    if (event_id) params.push(event_id);
+
+    // Only include is_deleted checks when the column exists in the orders table
+    const ordersHasIsDeleted = await this.ensureOrdersHasIsDeleted();
+    const ordersJoinExtra = ordersHasIsDeleted
+      ? "AND (o.is_deleted IS NULL OR o.is_deleted = 0) AND (o.status IS NULL OR o.status != 'cancelled')"
+      : "AND (o.status IS NULL OR o.status != 'cancelled')";
+
+    const query = `
+      SELECT
+        mi.*,
+        IFNULL(SUM(oi.quantity), 0) as quantity_sold
+      FROM menu_items mi
+      LEFT JOIN order_items oi ON oi.menu_item_id = mi.id
+      LEFT JOIN orders o ON oi.order_id = o.order_id ${ordersJoinExtra}
+      ${whereClause}
+      GROUP BY mi.id
+      ORDER BY mi.category, mi.name
+    `;
+
+    const rows = await this.db.executeQuery<any>(query, params);
+
+    return (rows || []).map((item: any) => ({
+      ...item,
+      qty_per_unit: item.qty_per_unit,
+      ingredients: typeof item.ingredients === 'string' ? JSON.parse(item.ingredients) : item.ingredients,
+      health_benefits: typeof item.health_benefits === 'string' ? JSON.parse(item.health_benefits) : item.health_benefits,
+      quantity_available: item.quantity_available || 0,
+      quantity_sold: Number(item.quantity_sold || 0),
       is_active: Boolean(item.is_active)
     }));
   }
@@ -152,16 +221,53 @@ class DataAccessLayer {
     });
   }
 
+  // Delete a menu item if it has no associated order_items. Returns success and message.
+  async deleteMenuItem(id: number): Promise<{ success: boolean; message?: string }> {
+    return this.executeTransaction(async () => {
+      // Check for existing order_items referencing this menu item
+      try {
+        const row: any = await this.db.executeQuery(`SELECT COUNT(*) as c FROM order_items WHERE menu_item_id = ?;`, [id]);
+        const count = Array.isArray(row) && row.length > 0 ? Number(row[0].c || 0) : (row && row.c ? Number(row.c) : 0);
+        if (count > 0) {
+          return { success: false, message: 'Cannot delete menu item with existing orders' };
+        }
+      } catch (e) {
+        // If query fails, surface error
+        throw new Error('Failed to check order items before delete: ' + String(e));
+      }
+
+      // Safe to delete
+      const res = await this.db.deleteOne('menu_items', { id });
+      return { success: res.success && res.changes > 0, message: res.success ? 'Deleted' : 'No item deleted' };
+    });
+  }
+
   // Order operations
   async getOrders(conditions: Record<string, any> = {}): Promise<Order[]> {
+    // By default, exclude soft-deleted orders unless caller explicitly provides is_deleted in conditions
+    if (!Object.prototype.hasOwnProperty.call(conditions, 'is_deleted')) {
+      const ordersHasIsDeleted = await this.ensureOrdersHasIsDeleted();
+      if (ordersHasIsDeleted) {
+        conditions = { ...conditions, is_deleted: 0 };
+      }
+    }
     return this.db.findMany<Order>('orders', conditions, { orderBy: 'created_at DESC' });
   }
 
   async getOrderById(order_id: string): Promise<Order | null> {
+    // Exclude soft-deleted orders by default when supported
+    const ordersHasIsDeleted = await this.ensureOrdersHasIsDeleted();
+    if (ordersHasIsDeleted) {
+      return this.db.findOne<Order>('orders', { order_id, is_deleted: 0 });
+    }
     return this.db.findOne<Order>('orders', { order_id });
   }
 
   async getOrderWithItems(order_id: string): Promise<Order | null> {
+    // Only filter out deleted orders when the database supports the is_deleted column
+    const ordersHasIsDeleted = await this.ensureOrdersHasIsDeleted();
+    const whereDeleted = ordersHasIsDeleted ? 'AND (o.is_deleted IS NULL OR o.is_deleted = 0)' : '';
+
     const query = `
       SELECT 
         o.*,
@@ -177,7 +283,7 @@ class DataAccessLayer {
       FROM orders o
       LEFT JOIN order_items oi ON o.order_id = oi.order_id
       LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
-      WHERE o.order_id = ?
+      WHERE o.order_id = ? ${whereDeleted}
       ORDER BY oi.id
     `;
 
@@ -242,7 +348,16 @@ class DataAccessLayer {
         conditions.push('o.event_id = ?');
         params.push(event_id);
       }
+      // Exclude soft-deleted orders only when the column exists
+      const ordersHasIsDeleted = await this.ensureOrdersHasIsDeleted();
+      if (ordersHasIsDeleted) {
+        conditions.push('(o.is_deleted IS NULL OR o.is_deleted = 0)');
+      }
       whereClause = 'WHERE ' + conditions.join(' AND ');
+    } else {
+      // When no user_id/event_id filter is provided, still exclude soft-deleted orders when supported
+      const ordersHasIsDeleted = await this.ensureOrdersHasIsDeleted();
+      whereClause = ordersHasIsDeleted ? "WHERE (o.is_deleted IS NULL OR o.is_deleted = 0)" : '';
     }
     
     const query = `
@@ -339,7 +454,7 @@ class DataAccessLayer {
     return this.executeTransaction(async () => {
       // Ensure orders table has is_deleted, deleted_at, deleted_by columns (attempt lightweight migration)
       try {
-        const cols = this.db.executeQuery(`PRAGMA table_info('orders')`) as any;
+        const cols = await this.db.executeQuery(`PRAGMA table_info('orders')`) as any;
         const colNames = (cols as any[]).map((c: any) => c.name);
         if (!colNames.includes('is_deleted')) {
           // Add column
@@ -372,6 +487,29 @@ class DataAccessLayer {
       }
 
       const now = new Date().toISOString();
+
+      // Restore stock for each order item (increment quantity_available)
+      try {
+        const items: any[] = await this.db.executeQuery(`SELECT menu_item_id, quantity FROM order_items WHERE order_id = ?;`, [order_id]);
+        if (Array.isArray(items) && items.length > 0) {
+          for (const it of items) {
+            try {
+              // Get current menu item qty
+              const mi = await this.db.findOne<any>('menu_items', { id: it.menu_item_id });
+              if (mi) {
+                const restored = (mi.quantity_available || 0) + Number(it.quantity || 0);
+                await this.db.updateOne('menu_items', { id: it.menu_item_id }, { quantity_available: restored, updated_at: now });
+              }
+            } catch (e) {
+              // continue restoring other items even if one fails
+            }
+          }
+        }
+      } catch (e) {
+        // non-fatal: continue to mark deleted, but surface error by throwing to rollback if needed
+        // We'll throw so the transaction rolls back — restoring stock should be atomic with deletion
+        throw new Error('Failed to restore stock for order deletion: ' + String(e));
+      }
 
       // Mark order as deleted
       await this.db.updateOne('orders', { order_id }, { is_deleted: 1, deleted_at: now });
