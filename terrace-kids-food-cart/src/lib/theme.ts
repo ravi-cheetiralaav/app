@@ -42,49 +42,61 @@ export const kidsTheme = createTheme({
   },
   typography: {
     fontFamily:
-      'var(--font-fk-grotesk-neue), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", Hiragino Sans, PingFang SC, Apple SD Gothic Neo, Yu Gothic, Microsoft YaHei, Microsoft JhengHei, Meiryo',
+      'var(--font-comic-neue), var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
     h1: {
       fontSize: '2.5rem',
       fontWeight: 700,
       color: '#2D3748',
+      fontFamily: 'var(--font-comic-neue), cursive',
+      lineHeight: 1.2,
     },
     h2: {
       fontSize: '2rem',
       fontWeight: 600,
       color: '#2D3748',
+      fontFamily: 'var(--font-comic-neue), cursive',
+      lineHeight: 1.3,
     },
     h3: {
       fontSize: '1.75rem',
       fontWeight: 600,
       color: '#2D3748',
+      fontFamily: 'var(--font-comic-neue), cursive',
+      lineHeight: 1.3,
     },
     h4: {
       fontSize: '1.5rem',
       fontWeight: 500,
       color: '#2D3748',
+      lineHeight: 1.4,
     },
     h5: {
       fontSize: '1.25rem',
       fontWeight: 500,
       color: '#2D3748',
+      lineHeight: 1.4,
     },
     h6: {
       fontSize: '1.1rem',
       fontWeight: 500,
       color: '#2D3748',
+      lineHeight: 1.4,
     },
     body1: {
       fontSize: '1rem',
       lineHeight: 1.6,
+      color: '#2D3748',
     },
     body2: {
       fontSize: '0.875rem',
       lineHeight: 1.6,
+      color: '#4A5568',
     },
     button: {
       textTransform: 'none',
       fontWeight: 600,
       fontSize: '1rem',
+      fontFamily: 'var(--font-inter), sans-serif',
     },
   },
   shape: {
