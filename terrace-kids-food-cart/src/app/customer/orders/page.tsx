@@ -38,13 +38,9 @@ export default function CustomerOrdersPage() {
 
   return (
     <PageWrapper>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-        <Box textAlign="left">
-          <Typography variant="h4">My Orders</Typography>
-          <Typography variant="body2" color="text.secondary">Recent orders and their status</Typography>
-        </Box>
-        <Box>
-          <Button variant="outlined" color="inherit" size="small" onClick={() => {
+      <Box mb={4} position="relative">
+        <Box position="absolute" top={16} right={16}>
+          <Button variant="text" size="small" onClick={() => {
             // sign out and redirect to home
             (async () => {
               try {
@@ -56,6 +52,10 @@ export default function CustomerOrdersPage() {
               router.push('/');
             })();
           }}>Logout</Button>
+        </Box>
+        <Box textAlign="center" mt={6}>
+          <Typography variant="h4">My Orders</Typography>
+          <Typography variant="body2" color="text.secondary">Recent orders and their status</Typography>
         </Box>
       </Box>
 
