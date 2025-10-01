@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -21,6 +21,7 @@ import {
   Star,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import AnimatedButton from '@/components/ui/AnimatedButton';
@@ -80,6 +81,17 @@ const benefits = [
 export default function LandingPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { data: session } = useSession();
+  const treatHref = session ? '/customer/menu' : '/login';
+  const [toastOpen, setToastOpen] = useState(false);
+
+  const handleTreatClick = () => {
+    // show a friendly toast if user is already signed in
+    if (session) {
+      setToastOpen(true);
+      setTimeout(() => setToastOpen(false), 2200);
+    }
+  };
 
   return (
     <>
@@ -119,7 +131,12 @@ export default function LandingPage() {
               </motion.div>
             </motion.div>
 
-            {/* Page title removed as requested */}
+            {/* Welcome badge when signed in */}
+            {session && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                <Chip label={`Hello ${((session as any)?.user?.name) || 'Friend'}! 👋`} sx={{ borderRadius: 3, bgcolor: 'rgba(255,255,255,0.9)' }} />
+              </Box>
+            )}
 
             {/* Intro paragraph intentionally removed per request */}
 
@@ -158,7 +175,8 @@ export default function LandingPage() {
               >
                 <AnimatedButton
                   component={Link}
-                  href="/login"
+                  href={treatHref}
+                  onClick={handleTreatClick}
                   variant="contained"
                   color="secondary"
                   size="large"
@@ -170,6 +188,14 @@ export default function LandingPage() {
               </Stack>
             </Paper>
           </motion.div>
+          {/* Temporary toast/snackbar for confirmation */}
+          <Box>
+            {toastOpen && (
+              <Paper elevation={6} sx={{ position: 'fixed', bottom: 24, right: 24, p: 2, borderRadius: 2 }}>
+                <Typography>You're already signed in — taking you to the menu! 🍰</Typography>
+              </Paper>
+            )}
+          </Box>
         </motion.div>
       </PageWrapper>
     </>

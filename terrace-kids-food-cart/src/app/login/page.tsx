@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Box, Typography, Paper } from '@mui/material';
 import { motion } from 'framer-motion';
 import CustomerLoginForm from '@/components/customer/CustomerLoginForm';
@@ -23,9 +24,15 @@ interface TabPanelProps {
 export default function LoginPage() {
   // If a user hits /login?tab=admin, redirect to the dedicated admin login page
   const router = useRouter();
+  const { data: session } = useSession();
 
   useEffect(() => {
     try {
+      // If already authenticated, send user to customer dashboard
+      if (session) {
+        router.replace('/customer/dashboard');
+        return;
+      }
       const search = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
       const tab = search ? search.get('tab') : null;
       if (tab === 'admin') {
